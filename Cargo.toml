@@ -11,6 +11,7 @@ cortex-m = { version = "0.7.7", features = [
 cortex-m-rt = "0.7.5"
 defmt = { version = "0.3.10", optional = true }
 defmt-rtt = { version = "0.4.1", optional = true }
+log = { version = "0.4.25", optional = true }
 embassy-futures = "0.1.1"
 embassy-stm32 = { version = "0.2.0", features = [
     "memory-x",
@@ -28,6 +29,8 @@ embassy-sync = "0.6.2"
 embassy-time = { version = "0.4.0", features = ["tick-hz-32_768"] }
 panic-halt = "1.0.0"
 panic-probe = { version = "0.3.2", features = ["print-defmt"], optional = true }
+embedded-io = { version = "0.6.1" }
+embedded-hal = "1.0.0"
 
 [[bin]]
 name = "hello"
@@ -68,3 +71,4 @@ debug = [
     "embassy-time/defmt-timestamp-uptime",
     "embassy-stm32/defmt",
 ]
+log = ["dep:log"]
