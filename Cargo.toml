@@ -30,7 +30,9 @@ embassy-time = { version = "0.4.0", features = ["tick-hz-32_768"] }
 panic-halt = "1.0.0"
 panic-probe = { version = "0.3.2", features = ["print-defmt"], optional = true }
 embedded-io = { version = "0.6.1" }
+embedded-io-async = "0.6.1"
 embedded-hal = "1.0.0"
+heapless = {version = "0.8.0", features = ["defmt-03"]}
 
 [[bin]]
 name = "hello"

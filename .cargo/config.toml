@@ -7,7 +7,7 @@ runner = 'probe-rs run --chip STM32L071C8Tx'
 target = "thumbv6m-none-eabi"
 
 [env]
-DEFMT_LOG = "trace"
+DEFMT_LOG = "info"
 
 [unstable]
 build-std = ["core"]
