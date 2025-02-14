@@ -20,13 +20,9 @@ embassy-stm32 = { version = "0.2.0", features = [
     "exti",
     "unstable-pac",
 ] }
-embassy-executor = { version = "0.7.0", features = [
-    "arch-cortex-m",
-    "executor-thread",
-    "defmt",
-] }
+
 embassy-sync = "0.6.2"
-embassy-time = { version = "0.4.0", features = ["tick-hz-32_768"] }
+embassy-time = { version = "0.4.0", features = ["tick-hz-32_768", "generic-queue-8"] }
 panic-halt = "1.0.0"
 panic-probe = { version = "0.3.2", features = ["print-defmt"], optional = true }
 embedded-io = { version = "0.6.1" }
@@ -64,7 +60,6 @@ debug = [
     "defmt",
     "defmt-rtt",
     "panic-probe",
-    "embassy-executor/defmt",
     "embassy-sync/defmt",
     "embassy-futures/defmt",
     "embassy-time/defmt",

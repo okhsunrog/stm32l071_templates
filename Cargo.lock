@@ -229,9 +229,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90327bcc66333a507f89ecc4e2d911b265c45f5c9bc241f98eee076752d35ac6"
 dependencies = [
- "cortex-m",
  "critical-section",
- "defmt",
  "document-features",
  "embassy-executor-macros",
 ]
@@ -352,6 +350,7 @@ dependencies = [
  "defmt",
  "document-features",
  "embassy-time-driver",
+ "embassy-time-queue-utils",
  "embedded-hal 0.2.7",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
@@ -716,7 +715,6 @@ dependencies = [
  "cortex-m-rt",
  "defmt",
  "defmt-rtt",
- "embassy-executor",
  "embassy-futures",
  "embassy-stm32",
  "embassy-sync",

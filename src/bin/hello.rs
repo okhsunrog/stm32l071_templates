@@ -10,13 +10,13 @@ use embassy_stm32::usart::{Uart, Config};
 use embassy_stm32::{bind_interrupts, peripherals, usart};
 use defmt::info;
 use embedded_io::Write;
-
-use embassy_executor::Spawner;
+use cortex_m_rt::entry;
 use embassy_stm32::gpio::{Level, Output, Speed};
-use embassy_time::{Duration, Timer};
+use embassy_time::Delay;
+use embedded_hal::delay::DelayNs;
 
-#[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+#[entry]
+fn main() -> ! {
     let p = embassy_stm32::init(Default::default());
     // #[cfg(feature = "log")]
     let mut uart_config = Config::default();
@@ -31,7 +31,7 @@ async fn main(_spawner: Spawner) {
 
     loop {
         info!("Hello, World!");
-        usart.write_all(b"Hello, World!\n").unwrap();
-        Timer::after(Duration::from_millis(500)).await;
+        usart.write_all(b"Hello, World!\r\n").unwrap();
+        Delay.delay_ms(1000);
     }
 }
