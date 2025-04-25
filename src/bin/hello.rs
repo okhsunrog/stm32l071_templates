@@ -1,17 +1,16 @@
 #![no_std]
 #![no_main]
+#![feature(impl_trait_in_assoc_type)]
 
 use embassy_stm32::rcc::{Hse, HseMode, Pll, PllSource, Sysclk};
 use embassy_stm32::time::Hertz;
 use panic_probe as _;
 
+use defmt::{info, unwrap};
+use embassy_executor::Spawner;
 use embassy_stm32::usart::{Config, Uart};
-use embedded_io::Write;
-
-use cortex_m_rt::{entry, exception};
 use embassy_stm32::{bind_interrupts, peripherals, usart};
-use embassy_time::Delay;
-use embedded_hal::delay::DelayNs;
+use embassy_time::Timer;
 use heapless::String;
 use rtt_target::rtt_init_defmt;
 use ufmt::uwrite;
@@ -20,13 +19,15 @@ bind_interrupts!(struct Irqs {
     LPUART1 => usart::InterruptHandler<peripherals::LPUART1>;
 });
 
-#[entry]
-fn main() -> ! {
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) {
+    // the C booloader disables interrupts, so we need to re-enable them
+    unsafe { cortex_m::interrupt::enable() };
+    rtt_init_defmt!();
     let mut config = embassy_stm32::Config::default();
     {
-        config.enable_debug_during_sleep = true;
         config.rcc.hse = Some(Hse {
-            freq: Hertz::hz(16_000_000),
+            freq: Hertz::mhz(16),
             mode: HseMode::Oscillator,
         });
         config.rcc.pll = Some(Pll {
@@ -36,10 +37,7 @@ fn main() -> ! {
         });
         config.rcc.sys = Sysclk::PLL1_R;
     }
-    rtt_init_defmt!();
     let p = embassy_stm32::init(config);
-    // the C booloader disables interrupts, so we need to re-enable them
-    unsafe { cortex_m::interrupt::enable() };
     let mut uart_config = Config::default();
     uart_config.baudrate = 57600;
     let mut usart = Uart::new_with_de(
@@ -59,29 +57,9 @@ fn main() -> ! {
     loop {
         message.clear();
         uwrite!(message, "Hello, World {}!\r\n", cnt).ok();
-        defmt::println!("Hello RTT! {}...", cnt);
-        usart.write_all(message.as_bytes()).unwrap();
+        info!("Hello RTT! {}...", cnt);
+        unwrap!(usart.write(message.as_bytes()).await);
         cnt += 1;
-        Delay.delay_ms(100);
-        // if (cnt > 10) {
-        //     panic!("test panic");
-        // }
-    }
-}
-
-// HardFault handler
-#[exception]
-unsafe fn HardFault(ef: &cortex_m_rt::ExceptionFrame) -> ! {
-    defmt::error!("!!! HARD FAULT !!!, frame:  {:?}", defmt::Debug2Format(ef));
-    loop {
-        cortex_m::asm::bkpt(); // Optional breakpoint instruction
-    }
-}
-
-#[exception]
-unsafe fn DefaultHandler(_irqn: i16) -> ! {
-    defmt::error!("!!! Default Handler triggered for IRQn: {} !!!", _irqn);
-    loop {
-        cortex_m::asm::bkpt();
+        Timer::after_millis(300).await;
     }
 }
