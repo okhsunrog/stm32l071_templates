@@ -11,13 +11,13 @@ MEMORY
 {
   /* RAM: Same as in C script */
   /* Starts at 0x20000000, 20 KiB length */
-  RAM : ORIGIN = 0x20000000, LENGTH = 20K
+  RAM (rwx) : ORIGIN = 0x20000000, LENGTH = 20K
 
   /* FLASH: Available flash memory for the application */
   /* Starts after the 4K Bootloader and 256 byte Metadata sections */
   /* Origin = 0x08000000 + 4K + 256 = 0x08000000 + 0x1000 + 0x100 = 0x08001100 */
   /* Length = Total Flash - Bootloader - Metadata = 64K - 4K - 256 = 61184 bytes */
-  FLASH : ORIGIN = 0x08001100, LENGTH = 61184 /* 64K - 4K - 256 bytes */
+  FLASH : ORIGIN = 0x08001100, LENGTH = 60K
 }
 
 /* The location of the stack segment is handled by the cortex-m-rt crate, */

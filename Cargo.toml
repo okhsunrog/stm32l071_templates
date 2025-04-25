@@ -12,15 +12,19 @@ cortex-m-rt = { version = "0.7.5", features = ["set-vtor"]}
 embassy-futures = "0.1.1"
 embassy-stm32 = { version = "0.2.0", features = [
     "stm32l071c8",
-    "unstable-pac",
-    "time-driver-any"
+    "exti",
+    "time-driver-any",
+    "defmt",
 ] }
-embassy-time = { version = "0.4.0", features = ["tick-hz-1_024", "generic-queue-8"] }
+embassy-time = { version = "0.4.0", features = ["tick-hz-32_768", "generic-queue-8", "defmt"] }
 panic-halt = "1.0.0"
 embedded-io = { version = "0.6.1" }
 embedded-hal = "1.0.0"
 ufmt = "0.2.0"
 heapless = { version = "0.8.0", features = ["ufmt"] }
+rtt-target = { version = "0.6.1", features = ["defmt"] }
+defmt = "1.0.1"
+panic-probe = { version = "1.0.0", features = ["print-defmt"] }
 
 [[bin]]
 name = "hello"
@@ -29,16 +33,16 @@ test = false
 bench = false
 
 [profile.dev]
-debug = true
-lto = true
+debug = 2
+lto = "thin"
 opt-level = "z"
 incremental = true
 
 [profile.release]
 # note: debug = true is okay - debuginfo isn't flashed to the device!
 # in fact, after disabling it the binary size could be somehow larger
-debug = true
-lto = "fat"
+debug = 2
+lto = "thin"
 # set to true to save some more space, don't enable when using defmt
 strip = false
 codegen-units = 1 # Allows LLVM to perform better optimization.
