@@ -12,13 +12,8 @@ import math
 TOOLCHAIN_PREFIX = "arm-none-eabi-"
 DEFAULT_MEMORY_REGIONS = {
     # RAM (xrw)       : ORIGIN = 0x20000004, LENGTH = 20K - 4 = 20476
-    "RAM":        (0x20000004, 20476),
-    # BOOTLOADER (rx) : ORIGIN = 0x08000000, LENGTH = 4K = 4096
-    "BOOTLOADER": (0x08000000, 4096),
-    # FIRMWARE (rx)   : ORIGIN = 0x08001000, LENGTH = 64K - 4K = 61440
-    "FIRMWARE":   (0x08001000, 61440),
-    # REGION_ALIAS( "FLASH", BOOTLOADER ); -> Use the BOOTLOADER definition for FLASH summary
-    "FLASH":      (0x08000000, 4096),
+    "RAM":        (0x20000000, 20480),
+    "FLASH":      (0x08001100, 61184),
 }
 SIZE_TOOL = f"{TOOLCHAIN_PREFIX}size"
 # --- End Configuration ---
