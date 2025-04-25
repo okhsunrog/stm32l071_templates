@@ -19,16 +19,3 @@ MEMORY
   /* Length = Total Flash - Bootloader - Metadata = 64K - 4K - 256 = 61184 bytes */
   FLASH : ORIGIN = 0x08001100, LENGTH = 61184 /* 64K - 4K - 256 bytes */
 }
-
-/* The location of the stack segment is handled by the cortex-m-rt crate, */
-/* by default it places the stack at the end of the RAM region defined above. */
-/* _stack_start = ORIGIN(RAM) + LENGTH(RAM); */
-
-/* The .vector_table section (containing the interrupt vectors) will be placed */
-/* by the cortex-m-rt crate at the beginning of the FLASH region (0x08001100). */
-/* IMPORTANT: Ensure the microcontroller's Vector Table Offset Register (VTOR) */
-/* is configured (usually by the bootloader or early startup code) to point to */
-/* 0x08001100 for interrupts to function correctly. This matches the C project's */
-/* VECT_TAB_OFFSET 0x1100 definition. */
-/* No need to define _stext here, as the vector table is placed correctly */
-/* at the FLASH ORIGIN. */

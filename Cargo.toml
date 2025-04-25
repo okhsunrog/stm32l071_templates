@@ -38,12 +38,6 @@ portable-atomic = { version = "1.5", features = ["unsafe-assume-single-core"] }
 ufmt = "0.2.0"
 heapless = { version = "0.8.0", features = ["ufmt"] }
 
-[[bin]]
-name = "hello"
-path = "src/bin/hello.rs"
-test = false
-bench = false
-
 [profile.dev]
 debug = 2
 lto = "fat"
