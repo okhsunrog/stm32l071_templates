@@ -31,7 +31,7 @@ async fn main(_spawner: Spawner) {
 
     loop {
         info!("Hello, World!");
-        usart.write_all(b"Hello, World!\n").unwrap();
+        usart.write_all(b"Hello, World!\r\n").unwrap();
         Timer::after(Duration::from_millis(500)).await;
     }
 }
