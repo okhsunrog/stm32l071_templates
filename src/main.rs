@@ -49,7 +49,19 @@ async fn main(spawner: Spawner) {
     let flash = async_flash_wrapper(Flash::new_blocking(p.FLASH));
 
     // Create and initialize the storage manager
-    let storage_manager = storage::StorageManager::new(flash);
+    let mut storage_manager = storage::StorageManager::new(flash);
+
+    // --- DEVELOPMENT ONLY: Erase the storage area ONCE ---
+    // Comment this out after the first successful run
+    match storage_manager.erase_map_area().await {
+        Ok(_) => info!("Storage area erased successfully for initial setup."),
+        Err(e) => {
+            defmt::error!("Failed to erase storage area: {}", defmt::Debug2Format(&e));
+            // Decide how to handle this - maybe panic?
+            panic!("Storage erase failed");
+        }
+    }
+
     // Get the static reference to the initialized Mutex
     let storage_manager_mutex = storage::STORAGE_MANAGER.init(
         embassy_sync::mutex::Mutex::new(storage_manager)
