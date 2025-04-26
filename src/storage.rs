@@ -48,8 +48,8 @@ pub struct StorageManager<F: AsyncNorFlash> {
 
 // Define concrete type aliases for STORAGE_MANAGER
 type ConcreteFlash = Flash<'static, Blocking>;
-type AsyncFlash = BlockingAsync<ConcreteFlash>;
-type ConcreteStorageManager = StorageManager<AsyncFlash>;
+pub type AsyncFlash = BlockingAsync<ConcreteFlash>; // Make AsyncFlash public if needed elsewhere, like cli.rs
+pub type ConcreteStorageManager = StorageManager<AsyncFlash>;
 
 // Global instance of the storage manager with concrete type
 pub static STORAGE_MANAGER: StaticCell<Mutex<CriticalSectionRawMutex, ConcreteStorageManager>> = StaticCell::new();
@@ -67,15 +67,35 @@ impl<F: AsyncNorFlash> StorageManager<F> {
     pub async fn initialize(&mut self) -> Result<AppState, ()> {
         let mut state = AppState::default();
 
-        if let Ok(Some(counter)) = self.get_counter().await {
-            info!("Loaded counter: {}", counter);
-            state.counter = counter;
+        match self.get_counter().await {
+            Ok(Some(counter)) => {
+                info!("Loaded counter: {}", counter);
+                state.counter = counter;
+            }
+            Ok(None) => {
+                info!("No counter found in storage, using default.");
+            }
+            Err(_) => {
+                 info!("Error reading counter, using default.");
+                 // Optionally return Err here if loading is critical
+            }
         }
 
-        if let Ok(Some(mode)) = self.get_mode().await {
-            info!("Loaded mode: {}", mode);
-            state.mode = mode;
+
+        match self.get_mode().await {
+             Ok(Some(mode)) => {
+                info!("Loaded mode: {}", mode);
+                state.mode = mode;
+            }
+            Ok(None) => {
+                info!("No mode found in storage, using default.");
+            }
+            Err(_) => {
+                info!("Error reading mode, using default.");
+                // Optionally return Err here if loading is critical
+            }
         }
+
 
         Ok(state)
     }
@@ -92,7 +112,7 @@ impl<F: AsyncNorFlash> StorageManager<F> {
         .await
         {
             Ok(value) => Ok(value),
-            Err(e) => {
+            Err(_) => { // Changed e to _
                 info!("Error reading counter");
                 Err(())
             }
@@ -132,7 +152,7 @@ impl<F: AsyncNorFlash> StorageManager<F> {
         .await
         {
             Ok(value) => Ok(value),
-            Err(_) => {
+            Err(_) => { // Changed e to _
                 info!("Error reading mode");
                 Err(())
             }
@@ -153,7 +173,7 @@ impl<F: AsyncNorFlash> StorageManager<F> {
         .await
         {
             Ok(_) => Ok(()),
-            Err(_) => {
+            Err(_) => { // Changed e to _
                 info!("Error saving mode:");
                 Err(())
             }

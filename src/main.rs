@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(impl_trait_in_assoc_type)]
 
-//mod cli;
+mod cli;
 mod storage;
 
 use embassy_stm32::flash::Flash;
@@ -12,17 +12,17 @@ use panic_probe as _;
 
 use defmt::{info, unwrap};
 use embassy_executor::Spawner;
-use embassy_stm32::usart::{Config, Uart};
+use embassy_stm32::usart::{Config, BufferedUart};
 use embassy_stm32::{bind_interrupts, peripherals, usart};
-use embassy_time::Timer;
+// use embassy_time::Timer; // Timer is no longer used in the loop
 use heapless::String;
 use rtt_target::rtt_init_defmt;
 use ufmt::uwrite;
 
-use storage::{StorageManager, async_flash_wrapper};
+use storage::async_flash_wrapper;
 
 bind_interrupts!(struct Irqs {
-    LPUART1 => usart::InterruptHandler<peripherals::LPUART1>;
+    LPUART1 => usart::BufferedInterruptHandler<peripherals::LPUART1>;
 });
 
 #[embassy_executor::main]
@@ -50,71 +50,73 @@ async fn main(spawner: Spawner) {
 
     // Create and initialize the storage manager
     let storage_manager = storage::StorageManager::new(flash);
+    // Get the static reference to the initialized Mutex
     let storage_manager_mutex = storage::STORAGE_MANAGER.init(
         embassy_sync::mutex::Mutex::new(storage_manager)
     );
 
-    // Initialize and read state
-    let state = match storage_manager_mutex.lock().await.initialize().await {
+    // Initialize and read state from storage
+    let initial_state = match storage_manager_mutex.lock().await.initialize().await {
         Ok(state) => {
             info!("Loaded state: counter={}, mode={}", state.counter, state.mode);
             state
         },
         Err(_) => {
-            info!("Failed to initialize storage, using defaults");
+            info!("Failed to initialize/load storage, using defaults");
             storage::AppState::default()
         }
     };
 
-    // Initialize CLI with initial state
-    //cli::init(state);
+    // Initialize CLI state (in-memory state mutex and update signal)
+    // This calls STATE.init() and STATE_UPDATED.init() internally
+    cli::init(initial_state);
 
     // Initialize UART for CLI
     let mut uart_config = Config::default();
     uart_config.baudrate = 57600;
-    let usart = Uart::new_with_de(
+    static mut TX_BUF: [u8; 256] = [0; 256];
+    static mut RX_BUF: [u8; 256] = [0; 256];
+    // Use unsafe to get mutable references to static buffers
+    let (tx_buf, rx_buf) = unsafe { (&mut TX_BUF, &mut RX_BUF) };
+
+    let usart = BufferedUart::new_with_de(
         p.LPUART1,
-        p.PA3,
-        p.PA2,
         Irqs,
-        p.PB1,
-        p.DMA1_CH2,
-        p.DMA1_CH3,
+        p.PA3, // RX
+        p.PA2, // TX
+        p.PB1, // DE/RE - Adjust pin if different or not used
+        tx_buf,
+        rx_buf,
         uart_config,
     )
     .unwrap();
 
-    // Spawn CLI task
-    //unwrap!(spawner.spawn(cli::cli_task(usart)));
+    // Spawn CLI task, passing the storage manager mutex reference
+    unwrap!(spawner.spawn(cli::cli_task(usart, storage_manager_mutex)));
 
     // Main task can do other work in parallel
-    // For example, let's periodically check the state and perform actions based on mode
+    // For example, let's periodically react to state changes
     let mut message: String<256> = String::new();
     let mut cnt = 0;
 
     loop {
-        // Wait for state updates directly on the StaticCell containing the Signal
-        //cli::STATE_UPDATED.wait().await;
+        // Wait for state updates using the initialized Signal
+        // STATE_UPDATED dereferences to the Signal, so call .wait() directly.
+        cli::STATE_UPDATED.wait().await;
 
-        // Get the current state
-        //let state = cli::get_state();
-        info!("Main task: state counter={}, mode={}", state.counter, state.mode);
+        // Get the current state (now async because it locks the state mutex)
+        let state = cli::get_state().await;
+        info!("Main task notified: state counter={}, mode={}", state.counter, state.mode);
 
+        // Example action based on state
         if state.mode > 0 {
-            // Do something based on mode
             message.clear();
-            uwrite!(message, "Main task: counter={}, mode={}, cnt={}\r\n",
+            uwrite!(message, "Main task action: counter={}, mode={}, cnt={}\r\n",
                 state.counter, state.mode, cnt).ok();
             info!("{}", message.as_str());
             cnt += 1;
         }
 
-        // Note: The Timer::after_millis(1000).await was inside the loop but after the wait.
-        // This means the loop would only execute roughly once per second *after* a state update.
-        // If you want the loop to run every second regardless of state updates,
-        // move the Timer outside or restructure the logic.
-        // Keeping it here as per original code structure.
-        Timer::after_millis(1000).await;
+        // No Timer delay here, the loop naturally blocks on wait() until a signal
     }
 }
-

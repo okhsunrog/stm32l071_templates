@@ -1,19 +1,28 @@
+use core::mem::MaybeUninit; // Import MaybeUninit
 use defmt::{unwrap, info};
 use embassy_sync::signal::Signal;
-use embassy_stm32::{usart::Uart, peripherals};
-use embedded_io_async::{Read, Write, ErrorType}; // Import ErrorType
+use embassy_stm32::usart::BufferedUart;
+use embedded_io_async::{Read, Write, ErrorType};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::mutex::Mutex;
 use heapless::String;
 use ufmt::uwrite;
-use static_cell::StaticCell;
 
-use crate::storage::{AppState, STORAGE_MANAGER};
+// Import the concrete types needed for the function signature
+use crate::storage::{AppState, ConcreteStorageManager};
 
-// Signal to notify that state has been updated
-pub static STATE_UPDATED: StaticCell<Signal<CriticalSectionRawMutex, ()>> = StaticCell::new();
+// Declare Signal directly using const fn new()
+pub static STATE_UPDATED: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
-// In-memory copy of the state for quick access
-static STATE: StaticCell<AppState> = StaticCell::new();
+// --- Using static mut with MaybeUninit ---
+// Holds the actual state data. Initialized at runtime.
+// Access MUST be synchronized and within `unsafe` blocks.
+static mut STATE_RAW: MaybeUninit<AppState> = MaybeUninit::uninit();
+
+// Mutex to synchronize access to STATE_RAW. This is crucial!
+static STATE_MUTEX: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
+// --- End unsafe static section ---
+
 
 /// Available CLI commands
 #[derive(Debug)]
@@ -27,29 +36,31 @@ pub enum Command {
 
 /// Parse a command from a string
 pub fn parse_command(input: &str) -> Command {
-    // Remove this line: let input = input.input();
-
-    if input.starts_with("get") {
+    let trimmed_input = input.trim(); // Trim whitespace early
+    if trimmed_input.starts_with("get") {
         Command::Get
-    } else if input.starts_with("set ") {
+    } else if trimmed_input.starts_with("set ") {
         // Extract counter value
-        if let Some(value_str) = input.split_whitespace().nth(1) {
+        if let Some(value_str) = trimmed_input.split_whitespace().nth(1) {
             if let Ok(counter) = value_str.parse() {
                 return Command::Set { counter };
             }
         }
         Command::Unknown
-    } else if input.starts_with("mode ") {
+    } else if trimmed_input.starts_with("mode ") {
         // Extract mode value
-        if let Some(value_str) = input.split_whitespace().nth(1) {
+        if let Some(value_str) = trimmed_input.split_whitespace().nth(1) {
             if let Ok(mode) = value_str.parse() {
                 return Command::SetMode { mode };
             }
         }
         Command::Unknown
-    } else if input == "help" {
+    } else if trimmed_input == "help" {
         Command::Help
-    } else {
+    } else if trimmed_input.is_empty() {
+        Command::Unknown
+    }
+     else {
         Command::Unknown
     }
 }
@@ -63,35 +74,52 @@ pub fn get_help_text() -> &'static str {
      help - Show this help text\r\n"
 }
 
-/// Initialize CLI state
+/// Initialize CLI state (UNSAFE - writes to static mut)
 pub fn init(initial_state: AppState) {
-    // Initialize the in-memory state. `init` returns a mutable reference.
-    let state_ref = STATE.init(initial_state);
-    *state_ref = initial_state; // Assign the value
-    // Initialize the state updated signal
-    STATE_UPDATED.init(Signal::new());
+    // We don't need to lock the mutex here IF we guarantee `init`
+    // is called only once, before any other task can access STATE_RAW.
+    // If other tasks might start concurrently, locking IS necessary even here.
+    // For simplicity assuming sequential startup:
+    unsafe {
+        STATE_RAW.write(initial_state);
+    }
+    // STATE_UPDATED is already initialized statically.
 }
 
-/// Get the current state
-pub fn get_state() -> AppState {
-    // Access the value directly after initialization. Dereference because AppState is Copy.
-    *STATE // Dereference the initialized StaticCell
+/// Get the current state (UNSAFE - reads static mut)
+pub async fn get_state() -> AppState {
+    // Lock the mutex to ensure exclusive access while reading
+    let _guard = STATE_MUTEX.lock().await;
+    // SAFETY: Assumes `init` has been called previously.
+    // Reading from static mut requires unsafe.
+    // `assume_init_read` is used because we initialized with `write`.
+    unsafe { STATE_RAW.assume_init_read() }
 }
 
-/// Update the state and notify listeners
-pub async fn update_state(state: AppState) {
-    // Update the in-memory state directly
-    *STATE = state; // Assign through the initialized StaticCell
-    // Signal that state has been updated directly
-    STATE_UPDATED.signal(()); // Access signal inside StaticCell directly
+/// Update the state and notify listeners (UNSAFE - writes static mut)
+pub async fn update_state(new_state: AppState) {
+    // Lock the mutex to ensure exclusive access while writing
+    let _guard = STATE_MUTEX.lock().await;
+    // SAFETY: Assumes `init` has been called previously.
+    // Writing to static mut requires unsafe.
+    unsafe {
+        STATE_RAW.write(new_state);
+    }
+
+    // Signal that state has been updated
+    STATE_UPDATED.signal(());
 }
+
 
 /// Generic function to handle the CLI session logic over any Read+Write stream.
-/// This function is NOT an Embassy task itself.
-async fn run_cli_session<T>(stream: &mut T)
+/// Accepts a reference to the initialized StorageManager Mutex.
+async fn run_cli_session<T>(
+    stream: &mut T,
+    storage: &'static Mutex<CriticalSectionRawMutex, ConcreteStorageManager>, // Pass storage manager mutex
+)
 where
-    T: Read + Write + ErrorType + ?Sized, // Add ErrorType bound
-    <T as ErrorType>::Error: defmt::Format, // Require the error to be formattable
+    T: Read + Write + ErrorType + ?Sized,
+    <T as ErrorType>::Error: defmt::Format,
 {
     // CLI buffer
     let mut rx_buf = [0u8; 64];
@@ -108,151 +136,114 @@ where
         // Read command
         cmd_buf.clear();
         'read_cmd: loop {
-            // Use the generic stream's read method
             let n = match stream.read(&mut rx_buf).await {
                 Ok(n) => n,
                 Err(e) => {
                     info!("Error reading from stream: {:?}", e);
-                    // Decide how to handle the error, e.g., break the loop
-                    break 'read_cmd; // Exit command reading loop on error
+                    break 'read_cmd;
                 }
             };
 
-            if n == 0 { // Handle EOF or closed connection
+            if n == 0 {
                 info!("Stream read returned 0 bytes. Closing session.");
                 return;
             }
 
             for i in 0..n {
                 let c = rx_buf[i];
-
-                // Echo character back using the generic stream's write_all method
                 if stream.write_all(&[c]).await.is_err() {
-                     info!("Error writing echo to stream. Closing session.");
-                     return;
+                    info!("Error writing echo to stream. Closing session.");
+                    return;
                 }
-
-
                 if c == b'\r' || c == b'\n' {
                     if stream.write_all(b"\r\n").await.is_err() {
                         info!("Error writing newline to stream. Closing session.");
                         return;
                     }
                     break 'read_cmd;
-                } else if c == 8 || c == 127 { // Backspace/Delete
+                } else if c == 8 || c == 127 {
                     if !cmd_buf.is_empty() {
                         cmd_buf.pop();
-                         // Backspace sequence
                         if stream.write_all(b"\x08 \x08").await.is_err() {
                             info!("Error writing backspace sequence. Closing session.");
                             return;
                         }
                     }
-                } else if c >= 32 && c <= 126 { // Printable ASCII
+                } else if c >= 32 && c <= 126 {
                     if cmd_buf.push(c as char).is_err() {
-                         // Buffer full, ignore character or handle differently
-                         info!("Command buffer full.");
+                        info!("Command buffer full.");
                     }
                 }
             }
         }
 
-        // If read loop was exited due to error, cmd_buf might be empty or incomplete
-        if cmd_buf.is_empty() && response.is_empty() { // Check if response is also empty to avoid sending "> " prompt unnecessarily
-             // If command buffer is empty (e.g., only Enter was pressed or read error occurred)
-             // Write the prompt again if the stream is still valid
-             response.clear();
-             uwrite!(response, "> ").ok();
-             if stream.write_all(response.as_bytes()).await.is_err() {
-                 info!("Error writing prompt. Closing session.");
-                 return;
-             }
-             continue; // Skip command processing and wait for next input
-        }
-
-
-        // Process command
-        if !cmd_buf.is_empty() {
-            info!("Processing command: {}", cmd_buf.as_str());
-            response.clear();
-
-            match parse_command(&cmd_buf) {
-                Command::Get => {
-                    let state = get_state();
-                    uwrite!(response, "Counter: {}, Mode: {}\r\n", state.counter, state.mode).ok();
-                },
-                Command::Set { counter } => {
-                    let mut state = get_state();
-                    state.counter = counter;
-                    // Access Mutex inside StaticCell directly
-                    match STORAGE_MANAGER.lock().await.set_counter(counter).await {
-                        Ok(_) => {
-                            uwrite!(response, "Counter set to {}\r\n", counter).ok();
-                            update_state(state).await;
-                        },
-                        Err(_) => {
-                            uwrite!(response, "Failed to save counter\r\n").ok();
-                        }
-                    }
-                },
-                Command::SetMode { mode } => {
-                    let mut state = get_state();
-                    state.mode = mode;
-                    // Access Mutex inside StaticCell directly
-                    match STORAGE_MANAGER.lock().await.set_mode(mode).await {
-                        Ok(_) => {
-                            uwrite!(response, "Mode set to {}\r\n", mode).ok();
-                            update_state(state).await;
-                        },
-                        Err(_) => {
-                            uwrite!(response, "Failed to save mode\r\n").ok();
-                        }
-                    }
-                },
-                Command::Help => {
-                    uwrite!(response, "{}", get_help_text()).ok();
-                },
-                Command::Unknown => {
-                    uwrite!(response, "Unknown command. Type 'help' for available commands\r\n").ok();
-                }
-            }
-
-            // Add the prompt for the next command
-            uwrite!(response, "> ").ok();
-            // Write response using the generic stream
-            if stream.write_all(response.as_bytes()).await.is_err() {
-                info!("Error writing response. Closing session.");
-                return; // Exit if writing fails
-            }
-        } else if response.is_empty() {
-            // If command was empty but no error occurred during read,
-            // ensure the prompt is shown for the next input.
+        let trimmed_cmd = cmd_buf.trim();
+        if trimmed_cmd.is_empty() {
             response.clear();
             uwrite!(response, "> ").ok();
             if stream.write_all(response.as_bytes()).await.is_err() {
-                info!("Error writing prompt after empty command. Closing session.");
+                info!("Error writing prompt. Closing session.");
                 return;
             }
+            continue;
         }
-        // Clear response buffer for the next iteration in case it wasn't used
-        // (e.g., if cmd_buf was empty but response wasn't cleared above)
-        // Actually, response is cleared at the start of processing, so this might be redundant.
-        // response.clear();
+
+        info!("Processing command: {}", trimmed_cmd);
+        response.clear();
+
+        match parse_command(trimmed_cmd) {
+            Command::Get => {
+                let state = get_state().await; // Calls unsafe internally
+                uwrite!(response, "Counter: {}, Mode: {}\r\n", state.counter, state.mode).ok();
+            },
+            Command::Set { counter } => {
+                match storage.lock().await.set_counter(counter).await {
+                    Ok(_) => {
+                        let mut new_state = get_state().await; // Calls unsafe internally
+                        new_state.counter = counter;
+                        update_state(new_state).await; // Calls unsafe internally
+                        uwrite!(response, "Counter set to {}\r\n", counter).ok();
+                    },
+                    Err(_) => {
+                        uwrite!(response, "Failed to save counter\r\n").ok();
+                    }
+                }
+            },
+            Command::SetMode { mode } => {
+                match storage.lock().await.set_mode(mode).await {
+                    Ok(_) => {
+                        let mut new_state = get_state().await; // Calls unsafe internally
+                        new_state.mode = mode;
+                        update_state(new_state).await; // Calls unsafe internally
+                        uwrite!(response, "Mode set to {}\r\n", mode).ok();
+                    },
+                    Err(_) => {
+                        uwrite!(response, "Failed to save mode\r\n").ok();
+                    }
+                }
+            },
+            Command::Help => {
+                uwrite!(response, "{}", get_help_text()).ok();
+            },
+            Command::Unknown => {
+                uwrite!(response, "Unknown command: '{}'. Type 'help' for available commands\r\n", trimmed_cmd).ok();
+            }
+        }
+
+        uwrite!(response, "> ").ok();
+        if stream.write_all(response.as_bytes()).await.is_err() {
+            info!("Error writing response. Closing session.");
+            return;
+        }
     }
 }
 
-
-/// CLI task that handles user interaction.
-/// This MUST keep the concrete Uart type because it's an Embassy task.
 #[embassy_executor::task]
 pub async fn cli_task(
-    // Correct signature: Lifetime and Mode generic parameters
-    mut uart: Uart<'static, embassy_stm32::mode::Async>,
+    mut uart: BufferedUart<'static>,
+    storage: &'static Mutex<CriticalSectionRawMutex, ConcreteStorageManager>,
 ) {
     info!("CLI Task started.");
-    // Call the generic helper function, passing the concrete Uart instance
-    run_cli_session(&mut uart).await;
-    // This task will likely run forever in run_cli_session unless an error occurs there
-    info!("CLI Task finished."); // Should not typically be reached unless run_cli_session returns
+    run_cli_session(&mut uart, storage).await;
+    info!("CLI Task finished.");
 }
-
