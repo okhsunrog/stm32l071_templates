@@ -37,6 +37,9 @@ static_cell = { version = "2" }
 portable-atomic = { version = "1.5", features = ["unsafe-assume-single-core"] }
 ufmt = "0.2.0"
 heapless = { version = "0.8.0", features = ["ufmt"] }
+embedded-storage-async = "0.4.1"
+embassy-embedded-hal = {version = "0.3.0", features = ["defmt"] }
+sequential-storage = { version = "4.0.1", features = ["defmt-03", "heapless"] }
 
 [profile.dev]
 debug = 2
