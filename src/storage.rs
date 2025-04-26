@@ -1,6 +1,6 @@
 use defmt::{Format, info};
 use embassy_stm32::flash::{Blocking, Flash};
-use sequential_storage::{cache::KeyPointerCache, map::{fetch_item, store_item}};
+use sequential_storage::{cache::NoCache, map::{fetch_item, store_item}};
 use embassy_embedded_hal::adapter::BlockingAsync;
 use embedded_storage::nor_flash::NorFlash;
 use embedded_storage_async::nor_flash::NorFlash as AsyncNorFlash;
@@ -30,8 +30,7 @@ impl Default for AppState {
 }
 
 // Define the flash range for our map storage
-const MAP_FLASH_RANGE: Range<u32> = 0x08080000..0x08081800;
-
+const MAP_FLASH_RANGE: Range<u32> = 0x26000..0x28000; // Adjust based on your flash configuration
 // Number of flash pages in our range
 const PAGE_COUNT: usize = 4; // Adjust based on your flash configuration
 
@@ -42,7 +41,7 @@ pub fn async_flash_wrapper<F: NorFlash>(flash: F) -> BlockingAsync<F> {
 // Storage manager that encapsulates all flash operations
 pub struct StorageManager<F: AsyncNorFlash> {
     flash: F,
-    cache: KeyPointerCache<PAGE_COUNT, u32, 8>, // Cache up to 8 keys
+    // cache: KeyPointerCache<PAGE_COUNT, u32, 8>, // Cache up to 8 keys
     data_buffer: [u8; 64],
 }
 
@@ -58,7 +57,7 @@ impl<F: AsyncNorFlash> StorageManager<F> {
     pub fn new(flash: F) -> Self {
         Self {
             flash,
-            cache: KeyPointerCache::new(),
+            // cache: KeyPointerCache::new(),
             data_buffer: [0u8; 64],
         }
     }
@@ -105,7 +104,7 @@ impl<F: AsyncNorFlash> StorageManager<F> {
         match fetch_item::<u32, u32, _>(
             &mut self.flash,
             MAP_FLASH_RANGE.clone(),
-            &mut self.cache,
+            &mut NoCache::new(),
             &mut self.data_buffer,
             &KEY_COUNTER,
         )
@@ -125,7 +124,7 @@ impl<F: AsyncNorFlash> StorageManager<F> {
         match store_item(
             &mut self.flash,
             MAP_FLASH_RANGE.clone(),
-            &mut self.cache,
+            &mut NoCache::new(),
             &mut self.data_buffer,
             &KEY_COUNTER,
             &counter,
@@ -133,8 +132,8 @@ impl<F: AsyncNorFlash> StorageManager<F> {
         .await
         {
             Ok(_) => Ok(()),
-            Err(_) => {
-                info!("Error saving counter");
+            Err(e) => {
+                info!("Error saving counter: {}", defmt::Debug2Format(&e));
                 Err(())
             }
         }
@@ -145,7 +144,7 @@ impl<F: AsyncNorFlash> StorageManager<F> {
         match fetch_item::<u32, u8, _>(
             &mut self.flash,
             MAP_FLASH_RANGE.clone(),
-            &mut self.cache,
+            &mut NoCache::new(),
             &mut self.data_buffer,
             &KEY_MODE,
         )
@@ -165,7 +164,7 @@ impl<F: AsyncNorFlash> StorageManager<F> {
         match store_item(
             &mut self.flash,
             MAP_FLASH_RANGE.clone(),
-            &mut self.cache,
+            &mut NoCache::new(),
             &mut self.data_buffer,
             &KEY_MODE,
             &mode,

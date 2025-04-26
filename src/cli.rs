@@ -76,10 +76,7 @@ pub fn get_help_text() -> &'static str {
 
 /// Initialize CLI state (UNSAFE - writes to static mut)
 pub fn init(initial_state: AppState) {
-    // We don't need to lock the mutex here IF we guarantee `init`
-    // is called only once, before any other task can access STATE_RAW.
-    // If other tasks might start concurrently, locking IS necessary even here.
-    // For simplicity assuming sequential startup:
+    // Assuming sequential startup:
     unsafe {
         STATE_RAW.write(initial_state);
     }
@@ -88,25 +85,18 @@ pub fn init(initial_state: AppState) {
 
 /// Get the current state (UNSAFE - reads static mut)
 pub async fn get_state() -> AppState {
-    // Lock the mutex to ensure exclusive access while reading
     let _guard = STATE_MUTEX.lock().await;
     // SAFETY: Assumes `init` has been called previously.
-    // Reading from static mut requires unsafe.
-    // `assume_init_read` is used because we initialized with `write`.
     unsafe { STATE_RAW.assume_init_read() }
 }
 
 /// Update the state and notify listeners (UNSAFE - writes static mut)
 pub async fn update_state(new_state: AppState) {
-    // Lock the mutex to ensure exclusive access while writing
     let _guard = STATE_MUTEX.lock().await;
     // SAFETY: Assumes `init` has been called previously.
-    // Writing to static mut requires unsafe.
     unsafe {
         STATE_RAW.write(new_state);
     }
-
-    // Signal that state has been updated
     STATE_UPDATED.signal(());
 }
 
@@ -151,36 +141,47 @@ where
 
             for i in 0..n {
                 let c = rx_buf[i];
-                if stream.write_all(&[c]).await.is_err() {
-                    info!("Error writing echo to stream. Closing session.");
-                    return;
-                }
+
+                // --- ECHO REMOVED ---
+                // if stream.write_all(&[c]).await.is_err() {
+                //     info!("Error writing echo to stream. Closing session.");
+                //     return;
+                // }
+                // --- END ECHO REMOVED ---
+
                 if c == b'\r' || c == b'\n' {
+                    // Still send newline back so the terminal moves to the next line
+                    // after user presses Enter.
                     if stream.write_all(b"\r\n").await.is_err() {
                         info!("Error writing newline to stream. Closing session.");
                         return;
                     }
-                    break 'read_cmd;
-                } else if c == 8 || c == 127 {
+                    break 'read_cmd; // Command finished
+                } else if c == 8 || c == 127 { // Handle backspace (BS or DEL)
+                    // --- BACKSPACE HANDLING REMOVED ---
+                    // We only modify our internal buffer, not the terminal display
                     if !cmd_buf.is_empty() {
                         cmd_buf.pop();
-                        if stream.write_all(b"\x08 \x08").await.is_err() {
-                            info!("Error writing backspace sequence. Closing session.");
-                            return;
-                        }
                     }
-                } else if c >= 32 && c <= 126 {
+                    // if stream.write_all(b"\x08 \x08").await.is_err() {
+                    //     info!("Error writing backspace sequence. Closing session.");
+                    //     return;
+                    // }
+                    // --- END BACKSPACE HANDLING REMOVED ---
+                } else if c >= 32 && c <= 126 { // Handle printable ASCII
                     if cmd_buf.push(c as char).is_err() {
                         info!("Command buffer full.");
+                        // Optional: Send bell or other indication?
                     }
                 }
+                // Ignore other characters
             }
         }
 
         let trimmed_cmd = cmd_buf.trim();
         if trimmed_cmd.is_empty() {
             response.clear();
-            uwrite!(response, "> ").ok();
+            uwrite!(response, "> ").ok(); // Still send prompt
             if stream.write_all(response.as_bytes()).await.is_err() {
                 info!("Error writing prompt. Closing session.");
                 return;
@@ -188,7 +189,7 @@ where
             continue;
         }
 
-        info!("Processing command: {}", trimmed_cmd);
+        info!("Processing command: {}", trimmed_cmd); // Log received command
         response.clear();
 
         match parse_command(trimmed_cmd) {
@@ -230,6 +231,7 @@ where
             }
         }
 
+        // Add the prompt for the next command
         uwrite!(response, "> ").ok();
         if stream.write_all(response.as_bytes()).await.is_err() {
             info!("Error writing response. Closing session.");
@@ -247,3 +249,4 @@ pub async fn cli_task(
     run_cli_session(&mut uart, storage).await;
     info!("CLI Task finished.");
 }
+
