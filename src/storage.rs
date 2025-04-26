@@ -30,7 +30,7 @@ impl Default for AppState {
 }
 
 // Define the flash range for our map storage
-const MAP_FLASH_RANGE: Range<u32> = 0x0800F000..0x08010000;
+const MAP_FLASH_RANGE: Range<u32> = 0x08080000..0x08081800;
 
 // Number of flash pages in our range
 const PAGE_COUNT: usize = 4; // Adjust based on your flash configuration
