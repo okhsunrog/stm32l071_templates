@@ -6,37 +6,35 @@ version = "0.1.0"
 [dependencies]
 cortex-m = { version = "0.7.7", features = [
     "inline-asm",
-    "critical-section-single-core",
+    # "critical-section-single-core",
 ] }
 cortex-m-rt = { version = "0.7.5", features = []}
 
 embassy-futures = "0.1.1"
 embassy-stm32 = { version = "0.2.0", features = [
     "stm32l071c8",
-    "exti",
-    "time-driver-any",
-    "unstable-pac",
-    "defmt",
-] }
-embassy-time = { version = "0.4.0", features = ["tick-hz-32_768","defmt"] }
-embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread", "defmt", "nightly"] }
-embassy-sync = {version = "0.6.2", features = ["defmt"] }
+    "unstable-pac", ], default-features = false }
+# embassy-time = { version = "0.4.0", features = ["tick-hz-32_768","defmt"] }
+# embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread", "defmt", "nightly"] }
+# embassy-sync = {version = "0.6.2", features = ["defmt"] }
 
 # panic-halt = "1.0.0"
-rtt-target = { version = "0.6.1", features = ["defmt"] }
-defmt = "1.0.1"
-panic-probe = { version = "1.0.0", features = ["print-defmt"] }
+# rtt-target = { version = "0.6.1", features = ["defmt"] }
+# defmt = "1.0.1"
+# panic-probe = { version = "1.0.0", features = ["print-defmt"] }
 
-embedded-storage = "0.3.1"
-embedded-io = { version = "0.6.1" }
-embedded-io-async = { version = "0.6.1" }
-embedded-hal = "1.0.0"
-embedded-hal-async = "1.0.0"
+# embedded-storage = "0.3.1"
+# embedded-io = { version = "0.6.1" }
+# embedded-io-async = { version = "0.6.1" }
+# embedded-hal = "1.0.0"
+# embedded-hal-async = "1.0.0"
 
-static_cell = { version = "2" }
-portable-atomic = { version = "1.5", features = ["unsafe-assume-single-core"] }
-ufmt = "0.2.0"
-heapless = { version = "0.8.0", features = ["ufmt"] }
+# static_cell = { version = "2" }
+# portable-atomic = { version = "1.5", features = ["unsafe-assume-single-core"] }
+# ufmt = "0.2.0"
+# heapless = { version = "0.8.0", features = ["ufmt"] }
+
+panic-abort = "0.3.2"
 
 [[bin]]
 name = "hello"
@@ -54,11 +52,11 @@ incremental = true
 # note: debug = true is okay - debuginfo isn't flashed to the device!
 # in fact, after disabling it the binary size could be somehow larger
 # debug = 2 enables defmt panic messages, doesn't work without it
-debug = 2
+debug = false
 lto = "fat"
 # set to true to save some more space, don't enable when using defmt
 strip = false
 codegen-units = 1 # Allows LLVM to perform better optimization.
-opt-level = "z" # sometimes s is better, sometimes z, test every time for the best size
+opt-level = "s" # sometimes s is better, sometimes z, test every time for the best size
 incremental = true # don't disable, the size is smaller with it
 

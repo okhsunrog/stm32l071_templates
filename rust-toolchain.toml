@@ -1,6 +1,6 @@
 [toolchain]
-#channel = "nightly-2024-10-13" # looks stable for me, from my old projects
+channel = "nightly-2024-10-13" # looks stable for me, from my old projects
 #channel = "nightly-2025-02-07" # some latest nightly version
-channel = "nightly-2024-12-10" # current version in embassy repo
+#channel = "nightly-2024-12-10" # current version in embassy repo
 components = ["rust-src", "rustfmt", "llvm-tools", "miri"]
 targets = ["thumbv6m-none-eabi"]
