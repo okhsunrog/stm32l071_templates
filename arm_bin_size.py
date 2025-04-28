@@ -13,7 +13,7 @@ TOOLCHAIN_PREFIX = "arm-none-eabi-"
 DEFAULT_MEMORY_REGIONS = {
     # RAM (xrw)       : ORIGIN = 0x20000004, LENGTH = 20K - 4 = 20476
     "RAM":        (0x20000000, 20480),
-    "FLASH":      (0x08001100, 61184),
+    "FLASH":      (0x08000000, 65536),
 }
 SIZE_TOOL = f"{TOOLCHAIN_PREFIX}size"
 # --- End Configuration ---

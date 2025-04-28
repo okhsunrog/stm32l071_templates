@@ -22,7 +22,6 @@ bind_interrupts!(struct Irqs {
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     // the C booloader disables interrupts, so we need to re-enable them
-    unsafe { cortex_m::interrupt::enable() };
     rtt_init_defmt!();
     let mut config = embassy_stm32::Config::default();
     {
