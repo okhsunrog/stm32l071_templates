@@ -2,21 +2,24 @@
 #![no_main]
 
 use cortex_m_rt::entry;
-use embassy_stm32::{gpio::{Level, Output, Speed}, rcc::{LsConfig, MSIRange, Sysclk}};
+use embassy_stm32::{
+    gpio::{Level, Output, Speed},
+    rcc::{Hse, HseMode, LsConfig, Sysclk},
+    time::mhz,
+};
 use panic_abort as _;
 
 #[entry]
 fn main() -> ! {
     let mut config = embassy_stm32::Config::default();
-    // {
-    //     config.rcc.ls = LsConfig::off();
-    //     config.rcc.msi = None;
-    //     config.rcc.hsi = true;
-    //     config.rcc.sys = Sysclk::HSI;
-    // }
     {
         config.rcc.ls = LsConfig::off();
         config.rcc.msi = None;
+        config.rcc.hse = Some(Hse {
+            mode: HseMode::Oscillator,
+            freq: mhz(16),
+        });
+        config.rcc.sys = Sysclk::HSE;
     }
     let p = embassy_stm32::init(config);
     let mut led = Output::new(p.PA6, Level::Low, Speed::Low);
