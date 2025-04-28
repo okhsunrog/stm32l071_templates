@@ -2,36 +2,28 @@
 #![no_main]
 
 use cortex_m_rt::entry;
-use embassy_stm32::pac::{self, gpio::vals};
+use embassy_stm32::{gpio::{Level, Output, Speed}, rcc::{LsConfig, MSIRange, Sysclk}};
 use panic_abort as _;
 
 #[entry]
 fn main() -> ! {
-    // Enable GPIOA clock
-    let rcc = pac::RCC;
-    rcc.gpioenr().modify(|w| w.set_gpioaen(true));
-    rcc.gpiorstr().modify(|w| {
-        w.set_gpioarst(true);
-        w.set_gpioarst(false);
-    });
-    let gpioa = pac::GPIOA;
-    const LED_PIN: usize = 6;
+    let mut config = embassy_stm32::Config::default();
+    // {
+    //     config.rcc.ls = LsConfig::off();
+    //     config.rcc.msi = None;
+    //     config.rcc.hsi = true;
+    //     config.rcc.sys = Sysclk::HSI;
+    // }
+    {
+        config.rcc.ls = LsConfig::off();
+        config.rcc.msi = None;
+    }
+    let p = embassy_stm32::init(config);
+    let mut led = Output::new(p.PA6, Level::Low, Speed::Low);
 
-    gpioa
-        .pupdr()
-        .modify(|w| w.set_pupdr(LED_PIN, vals::Pupdr::FLOATING));
-    gpioa
-        .otyper()
-        .modify(|w| w.set_ot(LED_PIN, vals::Ot::PUSH_PULL));
-    gpioa
-        .moder()
-        .modify(|w| w.set_moder(LED_PIN, vals::Moder::OUTPUT));
-
-    // blink loop
+    // blink
     loop {
-        pac::GPIOA.bsrr().write(|w| w.set_bs(LED_PIN, true));
-        cortex_m::asm::delay(1_000_000);
-        pac::GPIOA.bsrr().write(|w| w.set_br(LED_PIN, true));
+        led.toggle();
         cortex_m::asm::delay(1_000_000);
     }
 }
