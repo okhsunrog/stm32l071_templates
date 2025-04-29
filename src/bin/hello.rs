@@ -8,6 +8,8 @@ use embassy_stm32::{
     time::mhz,
 };
 use panic_abort as _;
+use embassy_time::Delay;
+use embedded_hal::delay::DelayNs;
 
 #[entry]
 fn main() -> ! {
@@ -23,12 +25,12 @@ fn main() -> ! {
     }
     let p = embassy_stm32::init(config);
     let mut led1 = Output::new(p.PA7, Level::High, Speed::Low);
-    let mut led2 = Output::new(p.PA6, Level::Low, Speed::Low);
+    //let mut led2 = Output::new(p.PA6, Level::Low, Speed::Low);
 
     // blink
     loop {
         led1.toggle();
-        led2.toggle();
-        cortex_m::asm::delay(2_000_000);
+        //led2.toggle();
+        Delay.delay_ms(1000);
     }
 }
