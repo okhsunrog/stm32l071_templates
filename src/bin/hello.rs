@@ -5,6 +5,10 @@ use cortex_m_rt::entry;
 use embassy_stm32::pac::{self, gpio::vals};
 use panic_abort as _;
 
+const TICK_HZ: f32 = 2_000_000.0;
+const DELAY_S: f32 = 1.0;
+const DELAY: u32 = (DELAY_S * TICK_HZ) as u32;
+
 #[entry]
 fn main() -> ! {
     // Enable GPIOA clock
@@ -30,8 +34,8 @@ fn main() -> ! {
     // blink loop
     loop {
         pac::GPIOA.bsrr().write(|w| w.set_bs(LED_PIN, true));
-        cortex_m::asm::delay(1_000_000);
+        cortex_m::asm::delay(DELAY);
         pac::GPIOA.bsrr().write(|w| w.set_br(LED_PIN, true));
-        cortex_m::asm::delay(1_000_000);
+        cortex_m::asm::delay(DELAY);
     }
 }
