@@ -9,6 +9,10 @@ use embassy_stm32::{
 };
 use panic_abort as _;
 
+const TICK_HZ: f32 = 16_000_000.0;
+const DELAY_S: f32 = 1.0;
+const DELAY: u32 = (DELAY_S * TICK_HZ) as u32;
+
 #[entry]
 fn main() -> ! {
     let mut config = embassy_stm32::Config::default();
@@ -27,6 +31,6 @@ fn main() -> ! {
     // blink
     loop {
         led.toggle();
-        cortex_m::asm::delay(1_000_000);
+        cortex_m::asm::delay(DELAY);
     }
 }
