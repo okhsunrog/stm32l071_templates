@@ -22,11 +22,13 @@ fn main() -> ! {
         config.rcc.sys = Sysclk::HSE;
     }
     let p = embassy_stm32::init(config);
-    let mut led = Output::new(p.PA6, Level::Low, Speed::Low);
+    let mut led1 = Output::new(p.PA7, Level::High, Speed::Low);
+    let mut led2 = Output::new(p.PA6, Level::Low, Speed::Low);
 
     // blink
     loop {
-        led.toggle();
-        cortex_m::asm::delay(1_000_000);
+        led1.toggle();
+        led2.toggle();
+        cortex_m::asm::delay(2_000_000);
     }
 }
