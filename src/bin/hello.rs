@@ -1,16 +1,17 @@
 #![no_std]
 #![no_main]
+#![feature(impl_trait_in_assoc_type)]
 
-use cortex_m_rt::entry;
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
     rcc::{Hse, HseMode, LsConfig, Sysclk},
     time::mhz,
 };
 use panic_abort as _;
+use embassy_time::{Duration, Timer};
 
-#[entry]
-fn main() -> ! {
+#[embassy_executor::main]
+async fn main(_spawner: embassy_executor::Spawner) {
     let mut config = embassy_stm32::Config::default();
     {
         config.rcc.ls = LsConfig::off();
@@ -29,6 +30,6 @@ fn main() -> ! {
     loop {
         led1.toggle();
         led2.toggle();
-        cortex_m::asm::delay(2_000_000);
+        Timer::after(Duration::from_secs(1)).await;
     }
 }

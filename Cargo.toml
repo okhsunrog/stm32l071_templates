@@ -13,9 +13,10 @@ cortex-m-rt = { version = "0.7.5", features = []}
 embassy-futures = "0.1.1"
 embassy-stm32 = { version = "0.2.0", features = [
     "stm32l071c8",
-    "unstable-pac", ], default-features = false }
-# embassy-time = { version = "0.4.0", features = ["tick-hz-32_768","defmt"] }
-# embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread", "defmt", "nightly"] }
+    "time-driver-any",
+    "unstable-pac", ] }
+embassy-time = { version = "0.4.0", features = ["tick-hz-32_768"] }
+embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread", "nightly"] }
 # embassy-sync = {version = "0.6.2", features = ["defmt"] }
 
 # panic-halt = "1.0.0"
