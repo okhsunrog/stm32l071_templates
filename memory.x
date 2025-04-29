@@ -17,5 +17,6 @@ MEMORY
   /* Starts after the 4K Bootloader and 256 byte Metadata sections */
   /* Origin = 0x08000000 + 4K + 256 = 0x08000000 + 0x1000 + 0x100 = 0x08001100 */
   /* Length = Total Flash - Bootloader - Metadata = 64K - 4K - 256 = 61184 bytes */
-  FLASH : ORIGIN = 0x08001100, LENGTH = 61184 /* 64K - 4K - 256 bytes */
+  /* FLASH : ORIGIN = 0x08001100, LENGTH = 61184  64K - 4K - 256 bytes */
+  FLASH (rwx) : ORIGIN = 0x08000000, LENGTH = 64K
 }
