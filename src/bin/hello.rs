@@ -70,10 +70,8 @@ async fn main(_spawner: embassy_executor::Spawner) {
 
     let mut rtc = Rtc::new(p.RTC, RtcConfig::default());
     info!("Got RTC! {:?}", now.and_utc().timestamp());
+    rtc.set_datetime(now.into()).unwrap();
 
-    rtc.set_datetime(now.into()).expect("datetime not set");
-
-    // blink
     loop {
         led1.toggle();
         led2.toggle();
