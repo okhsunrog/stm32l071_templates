@@ -1,14 +1,13 @@
 #![no_std]
 #![no_main]
-#![feature(impl_trait_in_assoc_type)]
 
 use embassy_stm32::{
     gpio::{Level, Output, Speed},
     rcc::{Hse, HseMode, LsConfig, Sysclk},
     time::mhz,
 };
-use panic_abort as _;
 use embassy_time::{Duration, Timer};
+use panic_abort as _;
 
 #[embassy_executor::main]
 async fn main(_spawner: embassy_executor::Spawner) {
