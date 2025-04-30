@@ -81,14 +81,14 @@ async fn main(_spawner: embassy_executor::Spawner) {
         led2.toggle();
         unwrap!(usart.write_all(b"Hello, world!\r\n").await);
         Timer::after(Duration::from_secs(1)).await;
-        let then: NaiveDateTime = rtc.now().unwrap().into();
-        info!("Got RTC! {:?}", then.and_utc().timestamp());
+        //let then: NaiveDateTime = rtc.now().unwrap().into();
+        //info!("Got RTC! {:?}", then.and_utc().timestamp());
         wdt.pet();
     }
 }
 
 async fn flash_test(f: Flash<'static, Blocking>) {
-    const ADDR: u32 = 0x26000;
+    const ADDR: u32 = 0xFF80;
     let mut f = f.into_blocking_regions().bank1_region;
 
     info!("Reading...");
