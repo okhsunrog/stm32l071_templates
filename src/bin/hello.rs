@@ -9,6 +9,7 @@ use embassy_stm32::{
     rcc::{Hse, HseMode, LsConfig, Sysclk},
     time::mhz,
     usart::{self, BufferedUart, Config},
+    wdg::IndependentWatchdog as Wdg,
 };
 use embassy_time::{Duration, Timer};
 use embedded_io_async::Write;
@@ -34,6 +35,8 @@ async fn main(_spawner: embassy_executor::Spawner) {
         config.enable_debug_during_sleep = true;
     }
     let p = embassy_stm32::init(config);
+    let mut wdt = Wdg::new(p.IWDG, 3_000_000);
+    wdt.unleash();
 
     let mut led1 = Output::new(p.PA7, Level::High, Speed::Low);
     let mut led2 = Output::new(p.PA6, Level::Low, Speed::Low);
@@ -61,5 +64,6 @@ async fn main(_spawner: embassy_executor::Spawner) {
         info!("Hello, world!");
         unwrap!(usart.write_all(b"Hello, world!\r\n").await);
         Timer::after(Duration::from_secs(1)).await;
+        wdt.pet();
     }
 }
