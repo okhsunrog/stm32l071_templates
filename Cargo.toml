@@ -39,7 +39,7 @@ heapless = { version = "0.8.0", features = ["defmt-03", "ufmt"], default-feature
 
 panic-abort = "0.3.2"
 chrono = { version = "^0.4", default-features = false }
-micromath = "2.0.0"
+micromath = "2.1.0"
 
 [[bin]]
 name = "hello"
