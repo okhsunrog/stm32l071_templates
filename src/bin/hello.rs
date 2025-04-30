@@ -1,18 +1,19 @@
 #![no_std]
 #![no_main]
 
+use chrono::{NaiveDate, NaiveDateTime};
 use defmt::{info, unwrap};
 use embassy_stm32::{
     bind_interrupts,
+    flash::{Blocking, Flash},
     gpio::{Level, Output, Speed},
     peripherals,
     rcc::{Hse, HseMode, LsConfig, RtcClockSource, Sysclk},
-    time::mhz,
     rtc::{Rtc, RtcConfig},
+    time::mhz,
     usart::{self, BufferedUart, Config},
     wdg::IndependentWatchdog as Wdg,
 };
-use chrono::{NaiveDate, NaiveDateTime};
 use embassy_time::{Duration, Timer};
 use embedded_io_async::Write;
 use panic_abort as _;
@@ -27,7 +28,7 @@ async fn main(_spawner: embassy_executor::Spawner) {
     rtt_init_defmt!(NoBlockSkip, 512);
     let mut config = embassy_stm32::Config::default();
     {
-        config.rcc.ls = LsConfig{
+        config.rcc.ls = LsConfig {
             rtc: RtcClockSource::HSE,
             lsi: false,
             lse: None,
@@ -72,6 +73,9 @@ async fn main(_spawner: embassy_executor::Spawner) {
     info!("Got RTC! {:?}", now.and_utc().timestamp());
     rtc.set_datetime(now.into()).unwrap();
 
+    let f = Flash::new_blocking(p.FLASH);
+    flash_test(f).await;
+
     loop {
         led1.toggle();
         led2.toggle();
@@ -81,4 +85,31 @@ async fn main(_spawner: embassy_executor::Spawner) {
         info!("Got RTC! {:?}", then.and_utc().timestamp());
         wdt.pet();
     }
+}
+
+async fn flash_test(f: Flash<'static, Blocking>) {
+    const ADDR: u32 = 0x26000;
+    let mut f = f.into_blocking_regions().bank1_region;
+
+    info!("Reading...");
+    let mut buf = [0u8; 8];
+    unwrap!(f.blocking_read(ADDR, &mut buf));
+    info!("Read: {=[u8]:x}", buf);
+
+    info!("Erasing...");
+    unwrap!(f.blocking_erase(ADDR, ADDR + 128));
+
+    info!("Reading...");
+    let mut buf = [0u8; 8];
+    unwrap!(f.blocking_read(ADDR, &mut buf));
+    info!("Read after erase: {=[u8]:x}", buf);
+
+    info!("Writing...");
+    unwrap!(f.blocking_write(ADDR, &[1, 2, 3, 4, 5, 6, 7, 8]));
+
+    info!("Reading...");
+    let mut buf = [0u8; 8];
+    unwrap!(f.blocking_read(ADDR, &mut buf));
+    info!("Read: {=[u8]:x}", buf);
+    assert_eq!(&buf[..], &[1, 2, 3, 4, 5, 6, 7, 8]);
 }
