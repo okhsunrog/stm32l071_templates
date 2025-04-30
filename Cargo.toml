@@ -19,7 +19,6 @@ embassy-stm32 = { version = "0.2.0", features = [
 embassy-time = { version = "0.4.0", features = ["tick-hz-32_768"] }
 embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread"] }
 embassy-sync = {version = "0.6.2" }
-# panic-halt = "1.0.0"
 rtt-target = { version = "0.6.1", features = ["defmt"] }
 defmt = "1.0.1"
 # panic-probe = { version = "1.0.0", features = ["print-defmt"] }
@@ -54,7 +53,7 @@ incremental = true
 # note: debug = true is okay - debuginfo isn't flashed to the device!
 # in fact, after disabling it the binary size could be somehow larger
 # debug = 2 enables defmt panic messages, doesn't work without it
-debug = false
+debug = true
 lto = "fat"
 # set to true to save some more space, don't enable when using defmt
 strip = true
