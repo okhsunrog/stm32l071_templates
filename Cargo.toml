@@ -60,7 +60,7 @@ incremental = true
 debug = true
 lto = "fat"
 # set to true to save some more space, don't enable when using defmt
-strip = true
+strip = false
 codegen-units = 1 # Allows LLVM to perform better optimization.
 opt-level = "s" # sometimes s is better, sometimes z, test every time for the best size
 incremental = true # don't disable, the size is smaller with it

@@ -29,8 +29,8 @@ async fn main(_spawner: embassy_executor::Spawner) {
     let mut config = embassy_stm32::Config::default();
     {
         config.rcc.ls = LsConfig {
-            rtc: RtcClockSource::HSE,
-            lsi: false,
+            rtc: RtcClockSource::LSI,
+            lsi: true,
             lse: None,
         };
         config.rcc.msi = None;
