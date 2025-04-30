@@ -15,10 +15,11 @@ embassy-futures = "0.1.1"
 embassy-stm32 = { version = "0.2.0", features = [
     "stm32l071c8",
     "time-driver-any",
+    "defmt",
     "unstable-pac", ] }
-embassy-time = { version = "0.4.0", features = ["tick-hz-32_768"] }
-embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread"] }
-embassy-sync = {version = "0.6.2" }
+embassy-time = { version = "0.4.0", features = ["tick-hz-32_768", "defmt"] }
+embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread", "defmt"] }
+embassy-sync = { version = "0.6.2", features = ["defmt"] }
 rtt-target = { version = "0.6.1", features = ["defmt"] }
 defmt = "1.0.1"
 # panic-probe = { version = "1.0.0", features = ["print-defmt"] }
@@ -33,7 +34,7 @@ embedded-hal-async = "1.0.0"
 static_cell = { version = "2" }
 portable-atomic = { version = "1.5", features = ["unsafe-assume-single-core"] }
 ufmt = "0.2.0"
-heapless = { version = "0.8.0", default-features = false }
+heapless = { version = "0.8.0", features = ["defmt-03", "ufmt"], default-features = false }
 
 panic-abort = "0.3.2"
 
