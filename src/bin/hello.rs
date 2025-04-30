@@ -31,6 +31,7 @@ async fn main(_spawner: embassy_executor::Spawner) {
             freq: mhz(16),
         });
         config.rcc.sys = Sysclk::HSE;
+        config.enable_debug_during_sleep = true;
     }
     let p = embassy_stm32::init(config);
 
