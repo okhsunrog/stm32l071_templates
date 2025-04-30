@@ -16,6 +16,7 @@ embassy-stm32 = { version = "0.2.0", features = [
     "stm32l071c8",
     "time-driver-any",
     "defmt",
+    "chrono",
     "unstable-pac", ] }
 embassy-time = { version = "0.4.0", features = ["tick-hz-32_768", "defmt"] }
 embassy-executor = { version = "0.7.0", features = ["arch-cortex-m", "executor-thread", "defmt"] }
@@ -37,6 +38,8 @@ ufmt = "0.2.0"
 heapless = { version = "0.8.0", features = ["defmt-03", "ufmt"], default-features = false }
 
 panic-abort = "0.3.2"
+chrono = { version = "^0.4", default-features = false }
+micromath = "2.0.0"
 
 [[bin]]
 name = "hello"

@@ -6,11 +6,13 @@ use embassy_stm32::{
     bind_interrupts,
     gpio::{Level, Output, Speed},
     peripherals,
-    rcc::{Hse, HseMode, LsConfig, Sysclk},
+    rcc::{Hse, HseMode, LsConfig, RtcClockSource, Sysclk},
     time::mhz,
+    rtc::{Rtc, RtcConfig},
     usart::{self, BufferedUart, Config},
     wdg::IndependentWatchdog as Wdg,
 };
+use chrono::{NaiveDate, NaiveDateTime};
 use embassy_time::{Duration, Timer};
 use embedded_io_async::Write;
 use panic_abort as _;
@@ -25,7 +27,11 @@ async fn main(_spawner: embassy_executor::Spawner) {
     rtt_init_defmt!(NoBlockSkip, 512);
     let mut config = embassy_stm32::Config::default();
     {
-        config.rcc.ls = LsConfig::off();
+        config.rcc.ls = LsConfig{
+            rtc: RtcClockSource::HSE,
+            lsi: false,
+            lse: None,
+        };
         config.rcc.msi = None;
         config.rcc.hse = Some(Hse {
             mode: HseMode::Oscillator,
@@ -57,13 +63,24 @@ async fn main(_spawner: embassy_executor::Spawner) {
         uart_config,
     ));
 
+    let now = NaiveDate::from_ymd_opt(2020, 5, 15)
+        .unwrap()
+        .and_hms_opt(10, 30, 15)
+        .unwrap();
+
+    let mut rtc = Rtc::new(p.RTC, RtcConfig::default());
+    info!("Got RTC! {:?}", now.and_utc().timestamp());
+
+    rtc.set_datetime(now.into()).expect("datetime not set");
+
     // blink
     loop {
         led1.toggle();
         led2.toggle();
-        info!("Hello, world!");
         unwrap!(usart.write_all(b"Hello, world!\r\n").await);
         Timer::after(Duration::from_secs(1)).await;
+        let then: NaiveDateTime = rtc.now().unwrap().into();
+        info!("Got RTC! {:?}", then.and_utc().timestamp());
         wdt.pet();
     }
 }
