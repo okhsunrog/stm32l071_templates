@@ -87,9 +87,9 @@ async fn main(_spawner: embassy_executor::Spawner) {
     }
 }
 
-async fn flash_test(f: Flash<'static, Blocking>) {
+async fn flash_test(mut f: Flash<'static, Blocking>) {
     const ADDR: u32 = 0xFF80;
-    let mut f = f.into_blocking_regions().bank1_region;
+    // let mut f = f.into_blocking_regions().bank1_region;
 
     info!("Reading...");
     let mut buf = [0u8; 8];
