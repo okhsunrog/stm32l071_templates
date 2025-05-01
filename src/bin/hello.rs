@@ -88,8 +88,12 @@ async fn main(_spawner: embassy_executor::Spawner) {
 }
 
 async fn flash_test(mut f: Flash<'static, Blocking>) {
-    const ADDR: u32 = 0xFF80;
-    // let mut f = f.into_blocking_regions().bank1_region;
+    // Using 1KB in the end of the flash for storing data,
+    // be sure to exclude it from the memory map for prevent
+    // overwriting it with firmware.
+    // 8 pages (Page 504 to Page 511), 128 bytes each.
+    // Address below is 0x0800 FC00 - 0x0800 0000
+    const ADDR: u32 = 0xFC00;
 
     info!("Reading...");
     let mut buf = [0u8; 8];
