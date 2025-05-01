@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+mod storage;
+
 use chrono::{NaiveDate, NaiveDateTime};
 use defmt::{info, unwrap};
 use embassy_stm32::{
@@ -81,8 +83,8 @@ async fn main(_spawner: embassy_executor::Spawner) {
         led2.toggle();
         unwrap!(usart.write_all(b"Hello, world!\r\n").await);
         Timer::after(Duration::from_secs(1)).await;
-        //let then: NaiveDateTime = rtc.now().unwrap().into();
-        //info!("Got RTC! {:?}", then.and_utc().timestamp());
+        let then: NaiveDateTime = rtc.now().unwrap().into();
+        info!("Got RTC! {:?}", then.and_utc().timestamp());
         wdt.pet();
     }
 }

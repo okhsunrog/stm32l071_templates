@@ -216,6 +216,24 @@ dependencies = [
 [[package]]
 name = "embassy-embedded-hal"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41fea5ef5bed4d3468dfd44f5c9fa4cda8f54c86d4fb4ae683eacf9d39e2ea12"
+dependencies = [
+ "defmt 0.3.100",
+ "embassy-futures 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+ "embedded-storage",
+ "embedded-storage-async",
+ "nb 1.1.0",
+]
+
+[[package]]
+name = "embassy-embedded-hal"
+version = "0.3.0"
 source = "git+https://github.com/embassy-rs/embassy?rev=e68713e9afa629eee9a04d9a1e68393f4fe242d8#e68713e9afa629eee9a04d9a1e68393f4fe242d8"
 dependencies = [
  "defmt 0.3.100",
@@ -300,7 +318,7 @@ dependencies = [
  "critical-section",
  "defmt 0.3.100",
  "document-features",
- "embassy-embedded-hal",
+ "embassy-embedded-hal 0.3.0 (git+https://github.com/embassy-rs/embassy?rev=e68713e9afa629eee9a04d9a1e68393f4fe242d8)",
  "embassy-futures 0.1.1 (git+https://github.com/embassy-rs/embassy?rev=e68713e9afa629eee9a04d9a1e68393f4fe242d8)",
  "embassy-hal-internal",
  "embassy-net-driver",
@@ -688,6 +706,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
+name = "sequential-storage"
+version = "4.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d8e933f534642c25b7341338c10e2250187c8cd198c3957ef6894265eefda86"
+dependencies = [
+ "defmt 0.3.100",
+ "embedded-storage-async",
+ "heapless",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -734,6 +763,7 @@ dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "defmt 1.0.1",
+ "embassy-embedded-hal 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "embassy-executor",
  "embassy-futures 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embassy-stm32",
@@ -750,6 +780,7 @@ dependencies = [
  "panic-abort",
  "portable-atomic",
  "rtt-target",
+ "sequential-storage",
  "static_cell",
  "ufmt",
 ]

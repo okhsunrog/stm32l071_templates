@@ -25,8 +25,6 @@ rtt-target = { version = "0.6.1", features = ["defmt"] }
 defmt = "1.0.1"
 # panic-probe = { version = "1.0.0", features = ["print-defmt"] }
 
-embedded-storage = "0.3.1"
-embedded-storage-async = "0.4.1"
 embedded-io = { version = "0.6.1" }
 embedded-io-async = { version = "0.6.1" }
 embedded-hal = "1.0.0"
@@ -41,9 +39,13 @@ panic-abort = "0.3.2"
 chrono = { version = "^0.4", default-features = false }
 micromath = "2.1.0"
 
+embedded-storage = "0.3.1"
+embedded-storage-async = "0.4.1"
+embassy-embedded-hal = {version = "0.3.0", features = ["defmt"] }
+sequential-storage = { version = "4.0.1", features = ["defmt-03", "heapless"] }
+
 [[bin]]
-name = "hello"
-path = "src/bin/hello.rs"
+name = "stm32l071_templates"
 test = false
 bench = false
 
