@@ -71,9 +71,8 @@ async fn main(_spawner: embassy_executor::Spawner) {
     // Initialize UART
     let mut uart_config = Config::default();
     uart_config.baudrate = 57600;
-    // Static buffers for UART
-    static mut TX_BUF: [u8; 256] = [0; 256];
-    static mut RX_BUF: [u8; 256] = [0; 256];
+    let mut tx_buf = [0u8; 256];
+    let mut rx_buf = [0u8; 256];
     let mut usart = unwrap!(unsafe {
         BufferedUart::new_with_de(
             p.LPUART1,
@@ -81,8 +80,8 @@ async fn main(_spawner: embassy_executor::Spawner) {
             p.PA2, // TX
             p.PB1, // DE
             Irqs,
-            &mut TX_BUF,
-            &mut RX_BUF,
+            &mut tx_buf,
+            &mut rx_buf,
             uart_config,
         )
     });
