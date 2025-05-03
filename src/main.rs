@@ -97,7 +97,7 @@ async fn main(_spawner: embassy_executor::Spawner) {
     // Get the blocking flash peripheral instance
     let flash_peripheral = Flash::new_blocking(p.FLASH);
     // Call the blocking init function from our storage module
-    storage::init(flash_peripheral);
+    unwrap!(storage::init(flash_peripheral));
     info!("Storage Initialized.");
     // `storage::init` handles checking the marker and erasing if necessary.
     // --- Storage Initialized ---
