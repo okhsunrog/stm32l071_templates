@@ -33,7 +33,6 @@ embedded-hal-async = "1.0.0"
 static_cell = { version = "2" }
 portable-atomic = { version = "1.5", features = ["unsafe-assume-single-core"] }
 ufmt = "0.2.0"
-heapless = { version = "0.8.0", features = ["defmt-03", "ufmt"], default-features = false }
 
 panic-abort = "0.3.2"
 chrono = { version = "^0.4", default-features = false }
@@ -43,6 +42,11 @@ embedded-storage = "0.3.1"
 embedded-storage-async = "0.4.1"
 embassy-embedded-hal = {version = "0.3.0", features = ["defmt"] }
 sequential-storage = { version = "4.0.1", features = ["defmt-03", "heapless"] }
+postcard = { version = "1.1.1", features = ["defmt", "use-crc", "postcard-derive"] }
+serde = { version = "1.0", default-features = false }
+arrayvec = { version = "0.7.4", default-features = false, features = ["serde"] }
+heapless = { version = "0.8.0", features = ["defmt-03", "ufmt", "serde"], default-features = false }
+
 
 [[bin]]
 name = "stm32l071_templates"
