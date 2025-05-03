@@ -6,26 +6,19 @@
 //! suitable for hardware with only blocking flash drivers like STM32L0.
 //! Uses `defmt` directly for logging.
 
-use core::ops::{Deref, Range}; // Removed DerefMut
-// Use Blocking HAL Flash and its associated Error type and MAX_ERASE_SIZE constant
+use core::ops::{Deref, Range};
 use embassy_stm32::flash::{Blocking, Error as FlashError, Flash, MAX_ERASE_SIZE};
 use embassy_sync::{
-    blocking_mutex::{raw::CriticalSectionRawMutex, Mutex as BlockingMutex}, // Keep Mutex
-    once_lock::OnceLock,                                                      // Keep OnceLock
+    blocking_mutex::{raw::CriticalSectionRawMutex, Mutex as BlockingMutex}, // Use Mutex directly
+    once_lock::OnceLock,
 };
-// Import the wrapper to make blocking flash compatible with async traits
 use embassy_embedded_hal::adapter::BlockingAsync;
-// Import the correct blocker for Embassy tasks
 use embassy_futures::block_on;
-// Traits required by sequential-storage
 use embedded_storage_async::nor_flash::NorFlash as AsyncNorFlash;
-use sequential_storage::map::{SerializationError, Value}; // Import traits/types for PostcardValue wrapper
-                                                          // Logging directly via defmt
-use defmt; // Make defmt macros available
-          // Serialization/Deserialization
-use postcard::experimental::max_size::MaxSize; // Needs feature "experimental-derive" in Cargo.toml
-use serde::{de::DeserializeOwned, Deserialize, Serialize}; // Added DeserializeOwned import
-// Fixed-size collections commonly used in embedded
+use sequential_storage::map::{SerializationError, Value};
+use defmt;
+use postcard::experimental::max_size::MaxSize;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use heapless;
 
 // Re-export the storage Error type for convenience
@@ -57,8 +50,6 @@ struct StorageState {
 static STORAGE: OnceLock<BlockingMutex<CriticalSectionRawMutex, StorageState>> = OnceLock::new();
 
 // --- Helper Function ---
-/// Converts a &str key into a fixed-size array, padding with 0s.
-/// Returns None if the key is too long for the cache key buffer.
 fn pad_key(key: &str) -> Option<CacheKeyType> {
     if key.len() > CACHE_KEY_BUFFER_SIZE {
         None
@@ -70,59 +61,40 @@ fn pad_key(key: &str) -> Option<CacheKeyType> {
 }
 
 // --- Postcard Value Wrapper ---
-
-/// A `Value` wrapper serialized using Postcard.
 #[derive(Debug)]
-struct PostcardValue<T> {
-    value: T,
-}
-
+struct PostcardValue<T> { value: T }
 impl<'d, T: Serialize + Deserialize<'d>> PostcardValue<T> {
-    #[allow(dead_code)]
-    pub fn from(value: T) -> Self { Self { value } }
+    #[allow(dead_code)] pub fn from(value: T) -> Self { Self { value } }
     pub fn into_inner(self) -> T { self.value }
 }
-
 impl<'d, T: Serialize + Deserialize<'d>> From<T> for PostcardValue<T> {
     fn from(other: T) -> PostcardValue<T> { PostcardValue::from(other) }
 }
-
 impl<T> Deref for PostcardValue<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target { &self.value }
 }
-
 impl<'d, T: Serialize + Deserialize<'d>> Value<'d> for PostcardValue<T> {
     fn serialize_into(&self, buffer: &mut [u8]) -> Result<usize, SerializationError> {
-        postcard::to_slice(&self.value, buffer)
-            .map(|used| used.len())
-            .map_err(|e| match e {
-                postcard::Error::SerializeBufferFull => SerializationError::BufferTooSmall,
-                _ => SerializationError::Custom(0),
-            })
+        postcard::to_slice(&self.value, buffer).map(|used| used.len()).map_err(|e| match e {
+            postcard::Error::SerializeBufferFull => SerializationError::BufferTooSmall,
+            _ => SerializationError::Custom(0),
+        })
     }
-
     fn deserialize_from(buffer: &'d [u8]) -> Result<Self, SerializationError> {
-        postcard::from_bytes(buffer)
-            .map(|value| Self { value })
-            .map_err(|e| match e {
-                postcard::Error::DeserializeUnexpectedEnd
-                | postcard::Error::DeserializeBadVarint
-                | postcard::Error::DeserializeBadBool
-                | postcard::Error::DeserializeBadChar
-                | postcard::Error::DeserializeBadUtf8
-                | postcard::Error::DeserializeBadOption
-                | postcard::Error::DeserializeBadEnum
-                | postcard::Error::DeserializeBadEncoding => SerializationError::InvalidData,
-                _ => SerializationError::Custom(0),
-            })
+        postcard::from_bytes(buffer).map(|value| Self { value }).map_err(|e| match e {
+            postcard::Error::DeserializeUnexpectedEnd | postcard::Error::DeserializeBadVarint |
+            postcard::Error::DeserializeBadBool | postcard::Error::DeserializeBadChar |
+            postcard::Error::DeserializeBadUtf8 | postcard::Error::DeserializeBadOption |
+            postcard::Error::DeserializeBadEnum | postcard::Error::DeserializeBadEncoding => SerializationError::InvalidData,
+            _ => SerializationError::Custom(0),
+        })
     }
 }
 
 // --- Newtype Wrapper for Storable String ---
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StorableString<const N: usize>(pub heapless::String<N>);
-
 impl<const N: usize> core::ops::Deref for StorableString<N> {
     type Target = heapless::String<N>;
     fn deref(&self) -> &Self::Target { &self.0 }
@@ -134,8 +106,7 @@ impl<'de, const N: usize> Deserialize<'de> for StorableString<N> {
      fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> { heapless::String::<N>::deserialize(deserializer).map(StorableString) }
 }
 impl<const N: usize> postcard::experimental::max_size::MaxSize for StorableString<N> {
-    // Safe upper bound: Max varint len (10 for u64/usize) + N bytes for string data
-    const POSTCARD_MAX_SIZE: usize = 10 + N;
+    const POSTCARD_MAX_SIZE: usize = 10 + N; // Corrected calculation
 }
 impl<const N: usize> defmt::Format for StorableString<N> {
     fn format(&self, f: defmt::Formatter) { defmt::write!(f, "{}", self.0.as_str()); }
@@ -145,32 +116,26 @@ impl<const N: usize> Clone for StorableString<N> {
 }
 
 // --- Initialization and Setup ---
-
-/// Gets the flash address [`Range`] for storage from the linker. **Internal Function**.
 fn flash_range_from_linker() -> Range<u32> {
-    unsafe extern "C" {
-        static __storage_start: u32;
-        static __storage_end: u32;
-    }
+    unsafe extern "C" { static __storage_start: u32; static __storage_end: u32; }
     let linker_start = unsafe { core::ptr::addr_of!(__storage_start).read_volatile() };
     let linker_end = unsafe { core::ptr::addr_of!(__storage_end).read_volatile() };
     let start = linker_start.saturating_sub(FLASH_OFFSET);
     let end = linker_end.saturating_sub(FLASH_OFFSET);
     let size = end.saturating_sub(start);
     assert!(linker_start >= FLASH_OFFSET, "Storage start symbol seems below flash base.");
-    assert!(end > start, "Storage range invalid: end address must be greater than start address.");
-    assert!(size >= MAX_ERASE_SIZE as u32, "Storage range must be at least MAX_ERASE_SIZE large.");
-    assert_eq!(size as usize % MAX_ERASE_SIZE, 0, "Storage range size must be a multiple of MAX_ERASE_SIZE.");
-    assert_eq!(start % MAX_ERASE_SIZE as u32, 0, "Storage start address must be MAX_ERASE_SIZE-aligned.");
-    assert_eq!(end % MAX_ERASE_SIZE as u32, 0, "Storage end address must be MAX_ERASE_SIZE-aligned.");
+    assert!(end > start, "Storage range invalid: end > start.");
+    assert!(size >= MAX_ERASE_SIZE as u32, "Storage range must be >= MAX_ERASE_SIZE.");
+    assert_eq!(size as usize % MAX_ERASE_SIZE, 0, "Storage size must be multiple of MAX_ERASE_SIZE.");
+    assert_eq!(start % MAX_ERASE_SIZE as u32, 0, "Storage start must be MAX_ERASE_SIZE-aligned.");
+    assert_eq!(end % MAX_ERASE_SIZE as u32, 0, "Storage end must be MAX_ERASE_SIZE-aligned.");
     let calculated_pages = size as usize / MAX_ERASE_SIZE;
-    assert_eq!(calculated_pages, PAGE_COUNT, "Calculated page count {} from linker symbols (size={}) does not match PAGE_COUNT constant {}", calculated_pages, size, PAGE_COUNT);
+    assert_eq!(calculated_pages, PAGE_COUNT, "Calculated pages {} != PAGE_COUNT {}", calculated_pages, PAGE_COUNT);
     defmt::info!("Storage: Linker symbols: start=0x{:X}, end=0x{:X}", linker_start, linker_end);
     defmt::info!("Storage: Calculated HAL range: start=0x{:X}, end=0x{:X} ({} bytes, {} pages based on MAX_ERASE_SIZE={})", start, end, size, PAGE_COUNT, MAX_ERASE_SIZE);
     start..end
 }
 
-/// Initializes the global storage system. **BLOCKING**.
 pub fn init(flash: HalFlash) {
     let flash_range = flash_range_from_linker();
     let wrapped_flash = BlockingAsync::new(flash);
@@ -179,8 +144,9 @@ pub fn init(flash: HalFlash) {
         cache: sequential_storage::cache::KeyPointerCache::<PAGE_COUNT, CacheKeyType, CACHE_KEYS>::new(),
         flash_range,
     };
-    STORAGE.init(BlockingMutex::new(initial_state));
+    STORAGE.init(BlockingMutex::new(initial_state)); // Initialize the OnceLock
     defmt::info!("Storage: Global instance initialized.");
+    // Check marker *after* init ensures STORAGE.try_get() will succeed
     match get::<u8>(MARKER_KEY) {
         Ok(Some(val)) if val == MARKER_VALUE => defmt::info!("Storage: Found valid initialization marker (0x{:02X}).", val),
         Ok(Some(val)) => {
@@ -202,8 +168,6 @@ pub fn init(flash: HalFlash) {
 }
 
 // --- Core API Operations (Blocking) ---
-
-/// Stores a key-value pair into flash memory. **BLOCKING**.
 pub fn insert<V>(key: &str, value: &V) -> Result<(), Error<FlashError>>
 where
     V: Serialize + MaxSize + Clone + DeserializeOwned,
@@ -222,7 +186,9 @@ where
 
     let postcard_value = PostcardValue::from(value.clone());
 
-    let storage_mutex = STORAGE.get().expect("Storage must be initialized before use");
+    // Use try_get() which returns Option<&Mutex...>
+    let storage_mutex = STORAGE.try_get()
+        .expect("Storage must be initialized before use");
 
     unsafe {
         storage_mutex.lock_mut(|state| {
@@ -240,7 +206,6 @@ where
     }
 }
 
-/// Retrieves a value from flash memory associated with the given key. **BLOCKING**.
 pub fn get<V>(key: &str) -> Result<Option<V>, Error<FlashError>>
 where
     V: DeserializeOwned + Serialize,
@@ -249,14 +214,15 @@ where
         pad_key(key).ok_or_else(|| Error::BufferTooSmall(CACHE_KEY_BUFFER_SIZE))?;
 
     if key.len() > CACHE_KEY_BUFFER_SIZE {
-        // Restore original log message
-        defmt::warn!(
+        defmt::warn!( // Restored message
             "Storage get warning for key '{}': Key length {} exceeds maximum cache key buffer size {}. Key cannot be in cache.",
             key, key.len(), CACHE_KEY_BUFFER_SIZE
         );
     }
 
-    let storage_mutex = STORAGE.get().expect("Storage must be initialized before use");
+    // Use try_get() which returns Option<&Mutex...>
+    let storage_mutex = STORAGE.try_get()
+        .expect("Storage must be initialized before use");
 
     let fetch_result = unsafe {
         storage_mutex.lock_mut(|state| {
@@ -277,30 +243,51 @@ where
             Ok(Some(fetched_postcard_value.into_inner()))
         }
         Ok(None) => Ok(None),
-        // Use correct tuple variant pattern Error::Corrupted(reason)
-        Err(Error::Corrupted(reason)) => {
-             defmt::error!("Storage corrupted during fetch for key '{}': {}", key, reason);
-             Err(Error::Corrupted(reason)) // Pass the reason along
+        // Use struct variant pattern Error::Corrupted {}
+        Err(Error::Corrupted {}) => {
+             defmt::error!("Storage corrupted during fetch for key '{}'", key);
+             Err(Error::Corrupted {}) // Construct struct variant
         }
-        // Use correct tuple variant pattern Error::Storage(flash_err)
-        Err(e @ Error::Storage(ref flash_err)) => { // Use ref flash_err to avoid moving it
+        // Use struct variant pattern Error::Storage { value: flash_err }
+        Err(e @ Error::Storage { value: ref flash_err }) => {
              defmt::error!("Storage error during fetch for key '{}': {:?}", key, defmt::Debug2Format(flash_err));
-             Err(e) // Return the original error `e`
+             Err(e)
         }
+        // BufferTooSmall is a tuple variant
         Err(e @ Error::BufferTooSmall(size)) => {
              defmt::error!("Buffer too small (size {}) during fetch for key '{}'", size, key);
              Err(e)
          }
+         // Add cases for other variants if needed
+         Err(e @ Error::FullStorage) => {
+             defmt::error!("Storage full during fetch for key '{}'", key);
+             Err(e)
+         }
+         Err(e @ Error::ItemTooBig) => {
+             defmt::error!("Item too big during fetch for key '{}'", key);
+             Err(e)
+         }
+         Err(e @ Error::SerializationError(_)) => {
+             defmt::error!("Unexpected serialization error during fetch for key '{}'", key);
+             Err(Error::Corrupted {}) // Map to Corrupted
+         }
+         // Note: sequential-storage Error is non-exhaustive
+         #[allow(unreachable_patterns)] // May become reachable if Error changes
+         Err(_) => {
+            defmt::error!("Unknown storage error during fetch for key '{}'", key);
+            Err(Error::Corrupted {}) // Map unknown to Corrupted
+         }
     }
 }
 
-/// Erases *all* data within the configured flash storage range. **BLOCKING**.
 pub fn erase_all() -> Result<(), Error<FlashError>> {
-    let storage_mutex = STORAGE.get().expect("Storage must be initialized before use");
+    // Use try_get() which returns Option<&Mutex...>
+    let storage_mutex = STORAGE.try_get()
+        .expect("Storage must be initialized before use");
 
     let erase_result = unsafe {
         storage_mutex.lock_mut(|state| {
-            // Restore original log message
+            // Restore message
             defmt::info!(
                 "Storage: Erasing all data in flash range {:?}..{:?}",
                 state.flash_range.start,
@@ -314,8 +301,8 @@ pub fn erase_all() -> Result<(), Error<FlashError>> {
             state.cache = sequential_storage::cache::KeyPointerCache::<PAGE_COUNT, CacheKeyType, CACHE_KEYS>::new();
             defmt::info!("Storage: Cache reset.");
 
-            // Use correct tuple variant syntax Error::Storage(value)
-            result.map_err(|flash_err| Error::Storage(flash_err))
+            // Use struct variant syntax Error::Storage { value: ... }
+            result.map_err(|flash_err| Error::Storage { value: flash_err })
         })
     };
 
@@ -331,10 +318,9 @@ pub fn erase_all() -> Result<(), Error<FlashError>> {
     erase_result
 }
 
-/// Removes a key-value pair from flash. **BLOCKING**. (Currently Disabled)
 pub fn remove(key: &str) -> Result<(), Error<FlashError>> {
      if key.len() > CACHE_KEY_BUFFER_SIZE {
-         // Restore original log message
+        // Restore message
          defmt::warn!(
              "Storage remove called for key '{}' which exceeds cache key buffer size {}. Remove operation may be less efficient.",
              key, CACHE_KEY_BUFFER_SIZE
@@ -345,61 +331,37 @@ pub fn remove(key: &str) -> Result<(), Error<FlashError>> {
  }
 
 /*
-// Example implementation if `enable_stm32_remove` feature is active:
-// Commented out cfg check as feature isn't defined
-// #[cfg(feature = "enable_stm32_remove")]
+// remove() implementation if enabled (uses try_get() and correct error syntax)
 pub fn remove(key: &str) -> Result<(), Error<FlashError>> {
-    let padded_key = pad_key(key)
-        .ok_or_else(|| Error::BufferTooSmall(CACHE_KEY_BUFFER_SIZE))?; // Key too long
-
-    let storage_mutex = STORAGE.get().expect("Storage must be initialized before use");
-
+    let padded_key = pad_key(key).ok_or_else(|| Error::BufferTooSmall(CACHE_KEY_BUFFER_SIZE))?;
+    let storage_mutex = STORAGE.try_get().expect("Storage must be initialized before use");
     unsafe {
         storage_mutex.lock_mut(|state| {
             defmt::info!("Storage: Attempting to remove key '{}'...", key);
             let mut buffer: [u8; DATA_BUFFER_SIZE] = [0; DATA_BUFFER_SIZE];
-
             let remove_future = sequential_storage::map::remove_item::<CacheKeyType, _>(
-                &mut state.flash,
-                state.flash_range.clone(),
-                &mut state.cache,
-                &mut buffer,
-                &padded_key,
+                &mut state.flash, state.flash_range.clone(), &mut state.cache, &mut buffer, &padded_key,
             );
             let result = block_on(remove_future);
-            if result.is_ok() {
-                defmt::info!("Storage: Successfully removed key '{}'.", key);
-            } else {
-                defmt::error!("Storage: Failed to remove key '{}': {:?}", key, defmt::Debug2Format(&result));
-            }
+            if result.is_ok() { defmt::info!("Storage: Successfully removed key '{}'.", key); }
+            else { defmt::error!("Storage: Failed to remove key '{}': {:?}", key, defmt::Debug2Format(&result)); }
             result
-        }) // Returns Result<(), Error<FlashError>>
-    } // End unsafe lock_mut closure
+        })
+    }
 }
 */
 
 
 // --- User-Defined Data Structures ---
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, MaxSize, defmt::Format, Clone)]
-pub struct Amsg {
-    pub id: u16,
-    pub interval: u16,
-}
-
+pub struct Amsg { pub id: u16, pub interval: u16 }
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, MaxSize, defmt::Format)]
 #[repr(u8)]
-pub enum HeatMode { Off = 0, On = 1, Auto = 2, PwrSave = 3, }
-
+pub enum HeatMode { Off = 0, On = 1, Auto = 2, PwrSave = 3 }
 #[derive(Serialize, Deserialize, Debug, PartialEq, MaxSize, defmt::Format, Clone)]
-pub struct HeaterNvdata {
-    pub mode: HeatMode,
-    pub hysteresis: u8,
-    pub threshold: i16,
-}
+pub struct HeaterNvdata { pub mode: HeatMode, pub hysteresis: u8, pub threshold: i16 }
 
-// --- Specific Configuration Getters/Setters (Blocking API) ---
-
+// --- Specific Configuration Getters/Setters ---
 const KEY_SNUM: &str = "cfg/snum";
 const KEY_NAME: &str = "cfg/name";
 const KEY_BAUD: &str = "cfg/baud";
@@ -409,7 +371,7 @@ const KEY_SENS_INTERVAL: &str = "cfg/sens_int";
 const KEY_CORR_DIST: &str = "cfg/corr_dist";
 const KEY_HEAT: &str = "cfg/heat";
 
-// Functions remain the same, using the new internal API structure
+// Functions remain the same, using the corrected internal API
 pub fn get_serial_number() -> Result<Option<[u8; 5]>, Error<FlashError>> { get::<[u8; 5]>(KEY_SNUM) }
 pub fn set_serial_number(snum: &[u8; 5]) -> Result<(), Error<FlashError>> { insert(KEY_SNUM, snum) }
 pub fn get_device_name() -> Result<Option<StorableString<22>>, Error<FlashError>> { get::<StorableString<22>>(KEY_NAME) }

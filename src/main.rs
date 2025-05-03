@@ -4,11 +4,12 @@
 // Include the storage module we created
 mod storage;
 
+#[allow(unused_imports)]
 use chrono::{NaiveDate, NaiveDateTime};
 use defmt::{info, unwrap};
 use embassy_stm32::{
     bind_interrupts,
-    flash::{Blocking, Flash}, // We need the Blocking Flash for storage::init
+    flash::Flash, // We need the Blocking Flash for storage::init
     gpio::{Level, Output, Speed},
     peripherals,
     rcc::{Hse, HseMode, LsConfig, RtcClockSource, Sysclk},
@@ -23,7 +24,7 @@ use panic_abort as _; // Or your preferred panic handler
 use rtt_target::{ChannelMode::NoBlockSkip, rtt_init_defmt};
 
 // Import specific types from storage if needed for examples
-use storage::{Amsg, HeatMode, HeaterNvdata};
+use storage::{HeatMode, HeaterNvdata};
 // Import heapless if using String/Vec in examples
 use heapless::String;
 
