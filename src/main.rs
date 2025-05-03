@@ -27,7 +27,6 @@ use storage::{Amsg, HeatMode, HeaterNvdata};
 // Import heapless if using String/Vec in examples
 use heapless::String;
 
-
 bind_interrupts!(struct Irqs {
     LPUART1 => usart::BufferedInterruptHandler<peripherals::LPUART1>;
 });
@@ -74,16 +73,18 @@ async fn main(_spawner: embassy_executor::Spawner) {
     // Static buffers for UART
     static mut TX_BUF: [u8; 256] = [0; 256];
     static mut RX_BUF: [u8; 256] = [0; 256];
-    let mut usart = unwrap!(unsafe { BufferedUart::new_with_de(
-        p.LPUART1,
-        p.PA3, // RX
-        p.PA2, // TX
-        p.PB1, // DE
-        Irqs,
-        &mut TX_BUF,
-        &mut RX_BUF,
-        uart_config,
-    )});
+    let mut usart = unwrap!(unsafe {
+        BufferedUart::new_with_de(
+            p.LPUART1,
+            p.PA3, // RX
+            p.PA2, // TX
+            p.PB1, // DE
+            Irqs,
+            &mut TX_BUF,
+            &mut RX_BUF,
+            uart_config,
+        )
+    });
     info!("UART Initialized.");
 
     // Initialize RTC
@@ -108,7 +109,6 @@ async fn main(_spawner: embassy_executor::Spawner) {
     storage_example(); // This function uses the blocking storage API internally
     info!("Storage Example Finished.");
     // --- Storage Example Done ---
-
 
     info!("Entering main loop...");
     loop {
@@ -135,34 +135,55 @@ fn storage_example() {
             info!("Current run count from storage: {}", count);
             let next_count = count.wrapping_add(1);
             info!("Incrementing run count to: {}", next_count);
-            unwrap!(storage::insert(counter_key, &next_count), "Failed to save counter");
+            unwrap!(
+                storage::insert(counter_key, &next_count),
+                "Failed to save counter"
+            );
         }
         Ok(None) => {
             info!("No run count found, initializing to 1.");
-            unwrap!(storage::insert(counter_key, &1u32), "Failed to save initial counter");
+            unwrap!(
+                storage::insert(counter_key, &1u32),
+                "Failed to save initial counter"
+            );
         }
         Err(e) => {
             info!("Error reading counter: {:?}", defmt::Debug2Format(&e));
             // Decide how to handle read errors, maybe default/reset?
             info!("Setting counter to 0 due to read error.");
-            unwrap!(storage::insert(counter_key, &0u32), "Failed to save reset counter");
+            unwrap!(
+                storage::insert(counter_key, &0u32),
+                "Failed to save reset counter"
+            );
         }
     }
 
+    // --- In src/main.rs, inside storage_example() ---
+
     // 2. Device Name (String, using specific helpers)
     match storage::get_device_name() {
-        Ok(Some(name)) => {
-            info!("Read device name: '{}'", name.as_str());
+        // This now returns Result<Option<StorableString<22>>, ...>
+        Ok(Some(name_wrapper)) => {
+            // name_wrapper is StorableString<22>
+            // Access the inner heapless::String using Deref .0 or as_str()
+            info!("Read device name: '{}'", name_wrapper.as_str());
             // Optionally modify and save back
-            // let mut new_name = name;
-            // new_name.push_str("!").ok();
-            // info!("Updating device name to: '{}'", new_name.as_str());
-            // unwrap!(storage::set_device_name(&new_name));
+            // let mut new_name_wrapper = name_wrapper.clone(); // Clone the wrapper
+            // new_name_wrapper.0.push_str("!").ok(); // Modify inner string
+            // info!("Updating device name to: '{}'", new_name_wrapper.as_str());
+            // unwrap!(storage::set_device_name(&new_name_wrapper)); // Pass the wrapper ref
         }
         Ok(None) => {
             info!("No device name found. Setting default.");
-            let default_name: String<22> = String::try_from("STM32L071 Device").unwrap();
-            unwrap!(storage::set_device_name(&default_name), "Failed to set default name");
+            // Create the heapless::String first
+            let default_heapless_name: String<22> = String::try_from("STM32L071 Device").unwrap();
+            // Wrap it in StorableString
+            let default_storable_name = storage::StorableString(default_heapless_name);
+            // Pass the wrapper ref to set_device_name
+            unwrap!(
+                storage::set_device_name(&default_storable_name),
+                "Failed to set default name"
+            );
         }
         Err(e) => {
             info!("Error reading device name: {:?}", defmt::Debug2Format(&e));
@@ -172,29 +193,47 @@ fn storage_example() {
     // 3. Heater Configuration (Struct, using specific helpers)
     let default_heat_cfg = HeaterNvdata {
         mode: HeatMode::Off,
-        hysteresis: 5, // Example: 0.5 C
+        hysteresis: 5,  // Example: 0.5 C
         threshold: 200, // Example: 20.0 C
     };
     match storage::get_heater_config() {
         Ok(Some(cfg)) => {
-            info!("Read heater config: Mode={:?}, Hys={}, Thr={}", cfg.mode, cfg.hysteresis, cfg.threshold);
+            info!(
+                "Read heater config: Mode={:?}, Hys={}, Thr={}",
+                cfg.mode, cfg.hysteresis, cfg.threshold
+            );
             // Example: Change mode if currently Off
             if cfg.mode == HeatMode::Off {
                 let mut new_cfg = cfg;
                 new_cfg.mode = HeatMode::Auto; // Change to Auto
                 new_cfg.threshold = 225; // Set new threshold 22.5 C
-                info!("Heater was Off, changing to Auto with threshold {}", new_cfg.threshold);
-                unwrap!(storage::set_heater_config(&new_cfg), "Failed to update heater config");
+                info!(
+                    "Heater was Off, changing to Auto with threshold {}",
+                    new_cfg.threshold
+                );
+                unwrap!(
+                    storage::set_heater_config(&new_cfg),
+                    "Failed to update heater config"
+                );
             }
         }
         Ok(None) => {
-            info!("No heater config found. Setting default: {:?}", default_heat_cfg);
-            unwrap!(storage::set_heater_config(&default_heat_cfg), "Failed to set default heater config");
+            info!(
+                "No heater config found. Setting default: {:?}",
+                default_heat_cfg
+            );
+            unwrap!(
+                storage::set_heater_config(&default_heat_cfg),
+                "Failed to set default heater config"
+            );
         }
-         Err(e) => {
+        Err(e) => {
             info!("Error reading heater config: {:?}", defmt::Debug2Format(&e));
             info!("Setting default heater config due to read error.");
-            unwrap!(storage::set_heater_config(&default_heat_cfg), "Failed to set default heater config after error");
+            unwrap!(
+                storage::set_heater_config(&default_heat_cfg),
+                "Failed to set default heater config after error"
+            );
         }
     }
 
@@ -206,8 +245,11 @@ fn storage_example() {
         Ok(Some(_)) => {
             info!("Error: Non-existent key 'app/calibration_factor' unexpectedly found!");
         }
-         Err(e) => {
-            info!("Error reading non-existent key: {:?}", defmt::Debug2Format(&e));
+        Err(e) => {
+            info!(
+                "Error reading non-existent key: {:?}",
+                defmt::Debug2Format(&e)
+            );
             // This might happen if storage is corrupted, but usually should just return Ok(None)
         }
     }
