@@ -1,7 +1,9 @@
 //! src/storage.rs
 
 #![deny(missing_docs)]
-#![allow(clippy::type_complexity)] // Allow complex types like Result<Option<...>, Error<FlashError>>
+// Allow complex types like Result<Option<...>, Error<FlashError>>
+#![allow(clippy::type_complexity)]
+#![allow(dead_code)]
 
 //! Provides key-value pair persistent storage on flash, inspired by ariel-os-storage.
 //! Uses a blocking API, wrapping async sequential-storage calls internally,
@@ -219,7 +221,7 @@ pub fn init(flash: HalFlash) {
             ),
         flash_range,
     };
-    STORAGE.init(BlockingMutex::new(initial_state));
+    let _ = STORAGE.init(BlockingMutex::new(initial_state));
     defmt::info!("Storage: Global instance initialized.");
     match get::<u8>(MARKER_KEY) {
         Ok(Some(val)) if val == MARKER_VALUE => defmt::info!(

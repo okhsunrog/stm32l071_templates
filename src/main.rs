@@ -73,18 +73,16 @@ async fn main(_spawner: embassy_executor::Spawner) {
     uart_config.baudrate = 57600;
     let mut tx_buf = [0u8; 256];
     let mut rx_buf = [0u8; 256];
-    let mut usart = unwrap!(unsafe {
-        BufferedUart::new_with_de(
-            p.LPUART1,
-            p.PA3, // RX
-            p.PA2, // TX
-            p.PB1, // DE
-            Irqs,
-            &mut tx_buf,
-            &mut rx_buf,
-            uart_config,
-        )
-    });
+    let mut usart = unwrap!(BufferedUart::new_with_de(
+        p.LPUART1,
+        p.PA3, // RX
+        p.PA2, // TX
+        p.PB1, // DE
+        Irqs,
+        &mut tx_buf,
+        &mut rx_buf,
+        uart_config,
+    ));
     info!("UART Initialized.");
 
     // Initialize RTC
