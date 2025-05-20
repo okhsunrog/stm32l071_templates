@@ -4,18 +4,11 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use defmt::{info, unwrap};
 use embassy_stm32::{
-    bind_interrupts,
-    flash::{Blocking, Flash},
-    gpio::{Level, Output, Speed},
-    peripherals,
-    rcc::{Hse, HseMode, LsConfig, RtcClockSource, Sysclk},
-    rtc::{Rtc, RtcConfig},
-    time::mhz,
-    usart::{self, BufferedUart, Config},
-    wdg::IndependentWatchdog as Wdg,
+    bind_interrupts, flash::{Blocking, Flash}, gpio::{Level, Output, Speed}, pac::Interrupt::FLASH, peripherals, rcc::{Hse, HseMode, LsConfig, RtcClockSource, Sysclk}, rtc::{Rtc, RtcConfig}, time::mhz, usart::{self, BufferedUart, Config}, wdg::IndependentWatchdog as Wdg
 };
 use embassy_time::{Duration, Timer};
 use embedded_io_async::Write;
+use embedded_storage::nor_flash::ReadNorFlash;
 use panic_abort as _;
 use rtt_target::{ChannelMode::NoBlockSkip, rtt_init_defmt};
 
@@ -74,7 +67,10 @@ async fn main(_spawner: embassy_executor::Spawner) {
     rtc.set_datetime(now.into()).unwrap();
 
     let f = Flash::new_blocking(p.FLASH);
-    flash_test(f).await;
+    let eeprom_start = embassy_stm32::flash::EEPROM_BASE;
+    let eeprom_size = embassy_stm32::flash::EEPROM_SIZE;
+    info!("EEPROM start: {}, size: {}", eeprom_start, eeprom_size);
+    eeprom_test(f).await;
 
     loop {
         led1.toggle();
@@ -87,33 +83,7 @@ async fn main(_spawner: embassy_executor::Spawner) {
     }
 }
 
-async fn flash_test(mut f: Flash<'static, Blocking>) {
-    // Using 1KB in the end of the flash for storing data,
-    // be sure to exclude it from the memory map for prevent
-    // overwriting it with firmware.
-    // 8 pages (Page 504 to Page 511), 128 bytes each.
-    // Address below is 0x0800 FC00 - 0x0800 0000
-    const ADDR: u32 = 0xFC00;
-
+async fn eeprom_test(mut f: Flash<'static, Blocking>) {
     info!("Reading...");
-    let mut buf = [0u8; 8];
-    unwrap!(f.blocking_read(ADDR, &mut buf));
-    info!("Read: {=[u8]:x}", buf);
 
-    info!("Erasing...");
-    unwrap!(f.blocking_erase(ADDR, ADDR + 128));
-
-    info!("Reading...");
-    let mut buf = [0u8; 8];
-    unwrap!(f.blocking_read(ADDR, &mut buf));
-    info!("Read after erase: {=[u8]:x}", buf);
-
-    info!("Writing...");
-    unwrap!(f.blocking_write(ADDR, &[1, 2, 3, 4, 5, 6, 7, 8]));
-
-    info!("Reading...");
-    let mut buf = [0u8; 8];
-    unwrap!(f.blocking_read(ADDR, &mut buf));
-    info!("Read: {=[u8]:x}", buf);
-    assert_eq!(&buf[..], &[1, 2, 3, 4, 5, 6, 7, 8]);
 }
