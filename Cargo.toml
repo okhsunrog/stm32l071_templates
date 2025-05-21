@@ -12,15 +12,15 @@ cortex-m = { version = "0.7.7", features = [
 cortex-m-rt = { version = "0.7.5", features = []}
 
 embassy-futures = "0.1.1"
-embassy-stm32 = { version = "0.2.0", path = "/home/okhsunrog/RustroverProjects/embassy/embassy-stm32", features = [
+embassy-stm32 = { version = "0.2.0", path = "/home/okhsunrog/code/rust/embassy/embassy-stm32", features = [
     "stm32l071c8",
     "time-driver-any",
     "defmt",
     "chrono",
     "unstable-pac", ] }
-embassy-time = { version = "0.4.0", path = "/home/okhsunrog/RustroverProjects/embassy/embassy-time", features = ["tick-hz-32_768", "defmt"] }
-embassy-executor = { version = "0.7.0", path = "/home/okhsunrog/RustroverProjects/embassy/embassy-executor", features = ["arch-cortex-m", "executor-thread", "defmt"] }
-embassy-sync = { version = "0.6.2", path = "/home/okhsunrog/RustroverProjects/embassy/embassy-sync", features = ["defmt"] }
+embassy-time = { version = "0.4.0", path = "/home/okhsunrog/code/rust/embassy/embassy-time", features = ["tick-hz-32_768", "defmt"] }
+embassy-executor = { version = "0.7.0", path = "/home/okhsunrog/code/rust/embassy/embassy-executor", features = ["arch-cortex-m", "executor-thread", "defmt"] }
+embassy-sync = { version = "0.6.2", path = "/home/okhsunrog/code/rust/embassy/embassy-sync", features = ["defmt"] }
 rtt-target = { version = "0.6.1", features = ["defmt"] }
 defmt = "1.0.1"
 # panic-probe = { version = "1.0.0", features = ["print-defmt"] }
@@ -40,7 +40,7 @@ micromath = "2.1.0"
 
 embedded-storage = "0.3.1"
 embedded-storage-async = "0.4.1"
-embassy-embedded-hal = { version = "0.3.0", path = "/home/okhsunrog/RustroverProjects/embassy/embassy-embedded-hal", features = ["defmt"] }
+embassy-embedded-hal = { version = "0.3.0", path = "/home/okhsunrog/code/rust/embassy/embassy-embedded-hal", features = ["defmt"] }
 sequential-storage = { version = "4.0.1", features = ["defmt-03", "heapless"] }
 postcard = { version = "1.1.1", features = ["defmt", "use-crc", "postcard-derive", "experimental-derive"] }
 serde = { version = "1.0", default-features = false }

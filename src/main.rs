@@ -84,6 +84,21 @@ async fn main(_spawner: embassy_executor::Spawner) {
 }
 
 async fn eeprom_test(mut f: Flash<'static, Blocking>) {
+    const ADDR: u32 = 0x0;
+
     info!("Reading...");
+    let mut buf = [0u8; 8];
+    unwrap!(f.eeprom_read_slice(ADDR, &mut buf));
+    info!("Read: {=[u8]:x}", buf);
+
+    info!("Writing...");
+    unwrap!(f.eeprom_write_slice(ADDR, &[1, 2, 3, 4, 5, 6, 7, 8]));
+
+    info!("Reading...");
+    let mut buf = [0u8; 8];
+    unwrap!(f.eeprom_read_slice(ADDR, &mut buf));
+    info!("Read: {=[u8]:x}", buf);
+    assert_eq!(&buf[..], &[1, 2, 3, 4, 5, 6, 7, 8]);
+    
 
 }
